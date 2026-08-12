@@ -9,6 +9,7 @@ class AppSettings {
   const AppSettings({
     this.cookie = '',
     this.refreshInterval = AppConfig.defaultRefreshInterval,
+    this.resumeRefreshInterval = AppConfig.defaultRefreshInterval,
     this.autoOpen = false,
     this.screener = '',
     this.showAllJobs = false,
@@ -21,6 +22,8 @@ class AppSettings {
 
   /// 任务列表刷新间隔（毫秒），0 表示暂停
   final int refreshInterval;
+
+  final int resumeRefreshInterval;
 
   /// 自动打开新 EP
   final bool autoOpen;
@@ -46,6 +49,7 @@ class AppSettings {
   AppSettings copyWith({
     String? cookie,
     int? refreshInterval,
+    int? resumeRefreshInterval,
     bool? autoOpen,
     String? screener,
     bool? showAllJobs,
@@ -55,6 +59,8 @@ class AppSettings {
     return AppSettings(
       cookie: cookie ?? this.cookie,
       refreshInterval: refreshInterval ?? this.refreshInterval,
+      resumeRefreshInterval:
+          resumeRefreshInterval ?? this.resumeRefreshInterval,
       autoOpen: autoOpen ?? this.autoOpen,
       screener: screener ?? this.screener,
       showAllJobs: showAllJobs ?? this.showAllJobs,
@@ -66,6 +72,7 @@ class AppSettings {
   Map<String, dynamic> toJson() => {
         'cookie': cookie,
         'refreshInterval': refreshInterval,
+        'resumeRefreshInterval': resumeRefreshInterval,
         'autoOpen': autoOpen,
         'screener': screener,
         'showAllJobs': showAllJobs,
@@ -77,6 +84,10 @@ class AppSettings {
         cookie: (json['cookie'] as String?) ?? '',
         refreshInterval: (json['refreshInterval'] as num?)?.toInt() ??
             AppConfig.defaultRefreshInterval,
+        resumeRefreshInterval:
+            (json['resumeRefreshInterval'] as num?)?.toInt() ??
+                ((json['refreshInterval'] as num?)?.toInt() ??
+                    AppConfig.defaultRefreshInterval),
         autoOpen: (json['autoOpen'] as bool?) ?? false,
         screener: (json['screener'] as String?) ?? '',
         showAllJobs: (json['showAllJobs'] as bool?) ?? false,

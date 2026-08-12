@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Flutter tool state & session files (fix repeated permission errors on Windows)
+.flutter_tool_state
+.tool-state/
+
+# Legacy Dart/Pub artifacts
+.flutter-plugins
+.packages

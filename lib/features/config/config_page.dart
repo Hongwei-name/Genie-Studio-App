@@ -604,12 +604,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   // ========== 操作 ==========
 
   Future<void> _togglePause(bool paused) async {
-    final cur = ref.read(settingsProvider);
-    final newInterval = paused ? 0 : AppConfig.defaultRefreshInterval;
-    await ref.read(settingsProvider.notifier).update(
-          cur.copyWith(refreshInterval: newInterval),
-        );
-    ref.read(refreshProvider.notifier).restart();
+    await ref.read(refreshProvider.notifier).togglePause();
     ref.read(logProvider.notifier).info(paused ? '已暂停刷新' : '已恢复刷新');
   }
 
@@ -620,9 +615,14 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     if (seconds > 600) seconds = 600;
     final newInterval = seconds * 1000;
 
-    final newSettings = AppSettings(
+    final currentSettings = ref.read(settingsProvider);
+    final effectiveInterval = currentSettings.isPaused ? 0 : newInterval;
+    final newSettings = currentSettings.copyWith(
       cookie: _cookieCtrl.text.trim(),
-      refreshInterval: newInterval,
+      refreshInterval: effectiveInterval,
+      resumeRefreshInterval: newInterval > 0
+          ? newInterval
+          : currentSettings.resumeRefreshInterval,
       autoOpen: _autoOpen,
       screener: _screenerCtrl.text.trim(),
       showAllJobs: _showAllJobs,

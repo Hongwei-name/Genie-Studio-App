@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/config/app_config.dart';
 import 'app_providers.dart';
 import 'fail_eps_provider.dart';
 import 'tasks_provider.dart';
@@ -50,6 +51,27 @@ class RefreshNotifier extends StateNotifier<bool> {
       stop();
     } else {
       start();
+    }
+  }
+
+  Future<void> togglePause() async {
+    final settings = _ref.read(settingsProvider);
+    if (settings.isPaused) {
+      final interval = settings.resumeRefreshInterval > 0
+          ? settings.resumeRefreshInterval
+          : AppConfig.defaultRefreshInterval;
+      await _ref.read(settingsProvider.notifier).update(
+            settings.copyWith(refreshInterval: interval),
+          );
+      start();
+    } else {
+      await _ref.read(settingsProvider.notifier).update(
+            settings.copyWith(
+              refreshInterval: 0,
+              resumeRefreshInterval: settings.refreshInterval,
+            ),
+          );
+      stop();
     }
   }
 
