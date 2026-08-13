@@ -224,8 +224,6 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
                     icon: Icons.receipt_long_outlined,
                     selectedIcon: Icons.receipt_long,
                     label: '日志',
-                    badge: logs.entries.length,
-                    badgeColor: AppTheme.textTertiary,
                     index: 2,
                   ),
                   const SizedBox(height: 4),
@@ -353,14 +351,82 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
             icon: Icons.info_outline,
             label: '关于',
             onTap: () {
-              showAboutDialog(
+              showDialog(
                 context: context,
-                applicationName: 'zero_K-Genie',
-                applicationVersion: '1.0.0',
-                children: [
-                  Text('作者: zero_K'),
-                  Text('并发数: ${settings.concurrency}'),
-                ],
+                builder: (ctx) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  ),
+                  contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFD35A), Color(0xFFFFA400)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFFA400).withValues(alpha: 0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.energy_savings_leaf,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'zero_K-Genie',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'v1.0.0',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        '智元标注审核助手',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '作者: zero_K',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: const Text('确定'),
+                    ),
+                  ],
+                ),
               );
             },
           ),
@@ -499,3 +565,8 @@ class _TrafficLightsState extends State<_TrafficLights> {
     );
   }
 }
+
+
+
+
+

@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/app_config.dart';
 import '../core/utils/format_utils.dart';
@@ -34,18 +34,31 @@ class LogNotifier extends StateNotifier<LogState> {
   String _lastLog = '';
   DateTime? _lastLogTime;
 
+  /// 无变化关键词（过滤重复的"无新内容"日志）
+  static const _noChangePatterns = [
+    '没有新的普通 EP',
+    '没有新的',
+    '无变化',
+    '无需更新',
+    '当前任务没有',
+  ];
+
   void add(String message, LogType type) {
     final now = DateTime.now();
-    // 去重：相同消息 5 秒内不重复
+    // 相同消息 10 秒内不重复
     if (message == _lastLog &&
+        _lastLogTime != null &&
+        now.difference(_lastLogTime!).inMilliseconds < 10000) {
+      return;
+    }
+    // auto 类型 5 秒内不重复
+    if (type == LogType.auto &&
         _lastLogTime != null &&
         now.difference(_lastLogTime!).inMilliseconds < 5000) {
       return;
     }
-    // auto 类型 2 秒内不重复
-    if (type == LogType.auto &&
-        _lastLogTime != null &&
-        now.difference(_lastLogTime!).inMilliseconds < 2000) {
+    // 过滤无变化日志
+    if (_noChangePatterns.any((p) => message.contains(p))) {
       return;
     }
     _lastLog = message;
@@ -53,7 +66,6 @@ class LogNotifier extends StateNotifier<LogState> {
 
     final entry = LogEntry(time: now, message: message, type: type);
     final newList = [...state.entries, entry];
-    // 超出上限截断
     if (newList.length > AppConfig.maxLogCount) {
       final newEntries = newList.sublist(newList.length - AppConfig.maxLogCount);
       state = LogState(entries: newEntries);
