@@ -172,14 +172,14 @@ class TasksNotifier extends StateNotifier<TasksState> {
       final jobs = await _repo.fetchAllJobsForTask(taskId);
       if (!mounted) return;
 
-      // 2. 收集所有需要扫描的 job ID（allJobIdsForScan = job.id + variables[].jobId）
-      //    同时记录每个扫描 ID 对应的 primary job.id（用于合并结果）
+      // 2. 使用接口返回的实际 Job ID。原平台将它放在 variables[].job_id，
+      //    Job.id 只是外层记录 ID，不能用于 episodes 接口或 EP 链接。
       final specs = <_EpSpec>[];
       final primaryIdByJobId = <int, int>{};
       for (final j in jobs) {
         for (final jid in j.allJobIdsForScan) {
           specs.add(_EpSpec(taskId, jid, '${taskId}_$jid'));
-          primaryIdByJobId[jid] = j.id;
+          primaryIdByJobId[jid] = jid;
         }
       }
 
@@ -348,6 +348,49 @@ class TasksNotifier extends StateNotifier<TasksState> {
     state = state.copyWith(openedEpKeys: {...state.openedEpKeys, epKey});
   }
 
+  Future<void> openNormalEps(int taskId) async {
+    final jobs = state.jobsByTask[taskId] ?? const <Job>[];
+    final requests = <_EpToOpen>[];
+    for (final job in jobs) {
+      for (final jobId in job.displayJobIds) {
+        final eps = state.epsByJob['${taskId}_$jobId'] ?? const <Episode>[];
+        for (final ep in eps) {
+          final key = 'task$taskId-ep${ep.id}';
+          if (!ep.isFailed && !state.openedEpKeys.contains(key)) {
+            requests.add(_EpToOpen(
+              taskId: taskId,
+              jobId: jobId,
+              episodeId: ep.id,
+              key: key,
+            ));
+          }
+        }
+      }
+    }
+    if (requests.isEmpty) {
+      _ref.read(logProvider.notifier).info('当前任务没有新的普通 EP');
+      return;
+    }
+    _ref.read(logProvider.notifier).auto('批量打开 ${requests.length} 个普通 EP');
+    final opened = Set<String>.from(state.openedEpKeys);
+    for (final item in requests) {
+      await _storage.markEpOpened(item.key);
+      opened.add(item.key);
+    }
+    state = state.copyWith(openedEpKeys: opened);
+    for (final item in requests) {
+      if (!mounted) return;
+      _ref.read(epOpenRequestProvider.notifier).request(
+            ApiClient.buildEpisodeCheckUrl(
+              taskId: item.taskId,
+              jobId: item.jobId,
+              episodeId: item.episodeId,
+            ),
+          );
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    }
+  }
+
   /// 获取首帧预览 URL（缓存 null 避免重复请求）
   Future<void> fetchPreviewUrl(int taskId, int jobId) async {
     final key = '${taskId}_$jobId';
@@ -369,7 +412,7 @@ class TasksNotifier extends StateNotifier<TasksState> {
   /// EP 审核成功后调用（WebView 监听"标注成功"消息时触发）
   Future<void> onEpisodeReviewed(int episodeId) async {
     final stats = _ref.read(statsProvider.notifier);
-    final success = await stats.addSuccess();
+    final success = await stats.addSuccess(episodeId: episodeId);
     if (!success) return;
     final frames = await _repo.fetchEpisodeMaxFrames(episodeId);
     if (frames > 0) {

@@ -8,7 +8,6 @@ import '../../providers/fail_eps_provider.dart';
 import '../../providers/log_provider.dart';
 import '../../providers/refresh_provider.dart';
 import '../../providers/stats_provider.dart';
-import '../../data/models/app_settings.dart';
 
 /// 配置页
 /// 包含 Token（Cookie）配置、刷新、自动打开、并发数、EP打开方式等
@@ -54,9 +53,27 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(settingsProvider);
     return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.fromLTRB(24, 22, 24, 28),
       children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('系统设置', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                      SizedBox(height: 5),
+                      Text('管理连接、自动化行为与本地数据维护。', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                    ],
+                  ),
+                ),
+                _statusBadge(settings.cookie.isNotEmpty, settings.isPaused),
+              ],
+            ),
+            const SizedBox(height: 22),
             _buildSection(
               title: '认证',
               children: [
@@ -148,12 +165,26 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     );
   }
 
+  Widget _statusBadge(bool authenticated, bool paused) {
+    final color = authenticated ? AppTheme.success : AppTheme.warning;
+    final label = authenticated ? (paused ? '已认证 · 已暂停' : '已认证 · 运行中') : '等待 Cookie';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(color: color.withValues(alpha: .1), borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(authenticated ? Icons.check_circle_outline : Icons.info_outline, size: 16, color: color),
+        const SizedBox(width: 7),
+        Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+      ]),
+    );
+  }
+
   Widget _buildSection({
     required String title,
     required List<Widget> children,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -54,7 +54,14 @@ class Job {
 
   /// 展示用：仅返回 job.id（一个 Job 对应一个 UI Section）
   List<int> get displayJobIds {
-    return id > 0 ? <int>[id] : const <int>[];
+    final ids = <int>[];
+    for (final variable in variables) {
+      if (variable.jobId > 0 && !ids.contains(variable.jobId)) {
+        ids.add(variable.jobId);
+      }
+    }
+    if (ids.isEmpty && id > 0) ids.add(id);
+    return ids;
   }
 
   /// 加载 EP 用：同时包含 job.id 和 variables 中的 job_id，去重

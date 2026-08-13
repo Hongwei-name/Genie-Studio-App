@@ -41,13 +41,24 @@ class StatsNotifier extends StateNotifier<StatsState> {
 
   /// 增加今日完成数（带去抖动）
   DateTime? _lastSuccessTime;
-  Future<bool> addSuccess() async {
+  final Set<int> _completedEpisodeIds = {};
+  Future<bool> addSuccess({int? episodeId}) async {
+    if (episodeId != null && _storage.isEpisodeCompletedToday(episodeId)) {
+      return false;
+    }
+    if (episodeId != null && !_completedEpisodeIds.add(episodeId)) {
+      return false;
+    }
     final now = DateTime.now();
-    if (_lastSuccessTime != null &&
+    if (episodeId == null &&
+        _lastSuccessTime != null &&
         now.difference(_lastSuccessTime!).inMilliseconds < 3000) {
       return false;
     }
     _lastSuccessTime = now;
+    if (episodeId != null) {
+      await _storage.markEpisodeCompleted(episodeId);
+    }
     await _storage.incrementTodayCount();
     state = state.copyWith(todayCount: state.todayCount + 1);
     return true;

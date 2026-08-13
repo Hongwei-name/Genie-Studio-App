@@ -65,7 +65,7 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
 
       // 策略：先导航到 baseURL 设置 Cookie，再跳转目标 URL
       if (widget.cookie.isNotEmpty) {
-        await _controller.loadUrl(AppConfig.apiBase);
+        await _controller.loadUrl(AppConfig.webViewLoginUrl);
         // 等待页面加载后 Cookie 即被注入到 document.cookie
         await Future.delayed(const Duration(milliseconds: 800));
         if (!mounted) return;

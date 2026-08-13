@@ -2,259 +2,142 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../data/repositories/review_repository.dart';
 import '../../providers/fail_eps_provider.dart';
 import '../../providers/tasks_provider.dart';
 
-/// 验收失败 EP 页
+/// 验收失败 EP 页面。
 class FailEpsPage extends ConsumerWidget {
   const FailEpsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(failEpsProvider);
-
+    final result = state.lastScanResult;
     return Column(
       children: [
-        _buildToolbar(ref, state),
-        if (state.progressText.isNotEmpty ||
-            (state.isLoading && state.progress > 0))
+        _buildHeader(ref, state, result),
+        if (state.progressText.isNotEmpty || (state.isLoading && state.progress > 0))
           _buildProgress(state),
         Expanded(child: _buildBody(context, ref, state)),
       ],
     );
   }
 
-  Widget _buildToolbar(
-    WidgetRef ref,
-    FailEpsState state,
-  ) {
+  Widget _buildHeader(WidgetRef ref, FailEpsState state, ScanResult? result) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      color: AppTheme.surface,
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
+      decoration: const BoxDecoration(
+        color: AppTheme.surface,
+        border: Border(bottom: BorderSide(color: AppTheme.separatorLight)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ElevatedButton(
-            onPressed: state.isLoading
-                ? null
-                : () => ref.read(failEpsProvider.notifier).scan(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.danger,
-              disabledBackgroundColor:
-                  AppTheme.textTertiary.withValues(alpha: 0.2),
-              foregroundColor: Colors.white,
-              disabledForegroundColor: Colors.white,
-              elevation: 0,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (state.isLoading)
-                  const Padding(
-                    padding: EdgeInsets.only(right: 6),
-                    child: SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
-                      ),
-                    ),
-                  ),
-                Text(
-                  state.isLoading ? '扫描中...' : '获取验收失败EP',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('验收失败', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                    SizedBox(height: 5),
+                    Text('集中查看需要重新处理的 EP，扫描结果会按照当前筛选条件更新。', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          if (state.lastScanResult != null)
-            Expanded(
-              child: Text(
-                '扫描 ${state.lastScanResult!.taskCount} 任务 / '
-                '${state.lastScanResult!.jobCount} Job / '
-                '${state.lastScanResult!.totalEps} EP',
-                style: const TextStyle(
-                    fontSize: 11, color: AppTheme.textTertiary),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
+              FilledButton.icon(
+                onPressed: state.isLoading ? null : () => ref.read(failEpsProvider.notifier).scan(),
+                icon: state.isLoading
+                    ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.radar, size: 17),
+                label: Text(state.isLoading ? '扫描中' : '重新扫描'),
+                style: FilledButton.styleFrom(backgroundColor: AppTheme.danger, foregroundColor: Colors.white),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _stat('任务', result?.taskCount ?? 0, Icons.assignment_outlined, AppTheme.primary),
+              _stat('Job', result?.jobCount ?? 0, Icons.work_outline, AppTheme.warning),
+              _stat('扫描 EP', result?.totalEps ?? 0, Icons.video_library_outlined, AppTheme.textSecondary),
+              _stat('待处理', state.failedEps.length, Icons.error_outline, AppTheme.danger),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _stat(String label, int value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(color: AppTheme.windowBackground, borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
+        child: Row(
+          children: [
+            Icon(icon, size: 17, color: color),
+            const SizedBox(width: 9),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+              const SizedBox(height: 2),
+              Text('$value', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+            ]),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildProgress(FailEpsState state) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
       color: AppTheme.surface,
-      child: Row(
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: LinearProgressIndicator(
-                value: state.progress / 100.0,
-                backgroundColor: AppTheme.separator,
-                valueColor:
-                    const AlwaysStoppedAnimation(AppTheme.primary),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            state.progressText,
-            style: const TextStyle(
-                fontSize: 10, color: AppTheme.textTertiary),
-          ),
-        ],
-      ),
+      child: Row(children: [
+        Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(value: state.progress / 100, minHeight: 4, backgroundColor: AppTheme.separatorLight, valueColor: const AlwaysStoppedAnimation(AppTheme.primary)))),
+        const SizedBox(width: 10),
+        Text(state.progressText, style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+      ]),
     );
   }
 
-  Widget _buildBody(
-    BuildContext context,
-    WidgetRef ref,
-    FailEpsState state,
-  ) {
+  Widget _buildBody(BuildContext context, WidgetRef ref, FailEpsState state) {
     if (state.isLoading && state.failedEps.isEmpty) {
-      return const Center(
-        child: SizedBox(
-          width: 28,
-          height: 28,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            valueColor: AlwaysStoppedAnimation(AppTheme.primary),
-          ),
-        ),
-      );
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2.5, color: AppTheme.primary));
     }
-    if (!state.loaded && state.failedEps.isEmpty) {
-      return _buildHint();
-    }
-    if (state.failedEps.isEmpty) {
-      return _buildEmpty();
-    }
-
+    if (!state.loaded && state.failedEps.isEmpty) return _emptyState(Icons.radar, '还没有扫描结果', '点击右上角“重新扫描”获取验收失败 EP。');
+    if (state.failedEps.isEmpty) return _emptyState(Icons.check_circle_outline, '当前没有验收失败 EP', '太好了，当前筛选范围内的 EP 都已通过验收。', color: AppTheme.success);
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
       itemCount: state.failedEps.length,
       itemBuilder: (context, index) {
         final ep = state.failedEps[index];
         return Container(
-          margin: const EdgeInsets.only(bottom: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            border: Border.all(
-              color: AppTheme.danger.withValues(alpha: 0.2),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'T${ep.taskId}-J${ep.jobId}-EP${ep.id}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      ep.reason,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.danger,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  ref.read(epOpenRequestProvider.notifier).request(ep.url);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.danger,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                  ),
-                ),
-                child: const Text(
-                  '前往处理',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          margin: const EdgeInsets.only(bottom: 9),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: AppTheme.surface, borderRadius: BorderRadius.circular(AppTheme.radius), border: Border.all(color: AppTheme.separatorLight)),
+          child: Row(children: [
+            Container(width: 34, height: 34, decoration: BoxDecoration(color: AppTheme.danger.withValues(alpha: .1), borderRadius: BorderRadius.circular(AppTheme.radiusSm)), child: const Icon(Icons.priority_high_rounded, size: 19, color: AppTheme.danger)),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('EP ${ep.id}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              const SizedBox(height: 4),
+              Text('Task ${ep.taskId}  ·  Job ${ep.jobId}', style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+              const SizedBox(height: 7),
+              Text(ep.reason, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AppTheme.danger)),
+            ])),
+            const SizedBox(width: 12),
+            OutlinedButton.icon(onPressed: () => ref.read(epOpenRequestProvider.notifier).request(ep.url), icon: const Icon(Icons.open_in_new, size: 15), label: const Text('处理'), style: OutlinedButton.styleFrom(foregroundColor: AppTheme.danger, side: const BorderSide(color: AppTheme.danger))),
+          ]),
         );
       },
     );
   }
 
-  Widget _buildHint() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.search, size: 48, color: AppTheme.textTertiary),
-          SizedBox(height: 12),
-          Text(
-            '点击上方按钮获取验收失败 EP 列表',
-            style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-          ),
-          SizedBox(height: 6),
-          Text(
-            '将扫描所有任务的 Job 与 EP，按初筛人筛选',
-            style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.check_circle, size: 48, color: AppTheme.success),
-          SizedBox(height: 12),
-          Text(
-            '暂无验收失败 EP',
-            style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-          ),
-        ],
-      ),
-    );
+  Widget _emptyState(IconData icon, String title, String desc, {Color color = AppTheme.textTertiary}) {
+    return Center(child: Container(padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 34), margin: const EdgeInsets.all(24), decoration: BoxDecoration(color: AppTheme.surface, borderRadius: BorderRadius.circular(AppTheme.radius), border: Border.all(color: AppTheme.separatorLight)), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 42, color: color), const SizedBox(height: 14), Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)), const SizedBox(height: 6), Text(desc, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary))])));
   }
 }

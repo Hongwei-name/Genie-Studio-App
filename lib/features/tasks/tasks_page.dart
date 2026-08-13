@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_theme.dart';
@@ -29,7 +30,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     return Column(
       children: [
         _buildToolbar(state, selectedTask, settings.isPaused),
-        _buildTableHeader(),
+        _buildTableHeader(selectedTask),
         Expanded(
           child: _buildBody(state, settings, selectedTask),
         ),
@@ -85,13 +86,13 @@ class _TasksPageState extends ConsumerState<TasksPage> {
           const SizedBox(width: 12),
           _ToolbarIconButton(
             icon: Icons.download_outlined,
-            label: '批量下载',
+            label: '批量打开',
             color: AppTheme.success,
             onPressed: selectedTask == null
                 ? null
-                : () => ref
-                    .read(logProvider.notifier)
-                    .info('批量下载入口已保留，当前任务 #${selectedTask.id}'),
+                : () => ref.read(tasksProvider.notifier).openNormalEps(
+                      selectedTask.id,
+                    ),
           ),
           const Spacer(),
           _ToolbarSquareButton(
@@ -106,40 +107,37 @@ class _TasksPageState extends ConsumerState<TasksPage> {
             icon: Icons.apps_rounded,
             tooltip: '资源视图',
             selected: true,
-            onPressed: () {},
+            onPressed: () => ref.read(selectedTaskIdProvider.notifier).state = null,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTableHeader() {
+  Widget _buildTableHeader(Task? selectedTask) {
     return Container(
-      height: 46,
+      height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: const BoxDecoration(
-        color: Color(0xFFFBFBFC),
+        color: Color(0xFFF7F8FA),
         border: Border(
           bottom: BorderSide(color: AppTheme.separatorLight),
         ),
       ),
       child: Row(
-        children: const [
-          SizedBox(
-            width: 34,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: _HeaderCheckbox(),
-            ),
+        children: [
+          _BackHeaderButton(
+            width: 88,
+            onPressed: selectedTask == null
+                ? null
+                : () => ref.read(selectedTaskIdProvider.notifier).state = null,
           ),
-          _HeaderCell(width: 88, label: '域', icon: Icons.search),
-          _HeaderCell(width: 94, label: '类型', icon: Icons.filter_list),
-          _HeaderCell(width: 92, label: '预览'),
-          _HeaderCell(width: 88, label: '状态'),
-          Expanded(child: _HeaderCell(label: '描述', icon: Icons.search)),
-          _HeaderCell(width: 118, label: '资源大小', icon: Icons.arrow_downward),
-          _HeaderCell(width: 180, label: '保存路径'),
-          _HeaderCell(width: 116, label: '操作', icon: Icons.help_outline),
+          const _HeaderCell(width: 92, label: '预览'),
+          const _HeaderCell(width: 88, label: '状态'),
+          const Expanded(child: _HeaderCell(label: '描述', icon: Icons.search)),
+          const _HeaderCell(width: 118, label: '资源大小', icon: Icons.arrow_downward),
+          const _HeaderCell(width: 180, label: '保存路径'),
+          const _HeaderCell(width: 116, label: '操作', icon: Icons.help_outline),
         ],
       ),
     );
@@ -201,7 +199,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
       return _buildTaskOverview(state);
     }
 
-    return _buildTaskRows(selectedTask, state);
+    return _buildTaskRows(selectedTask, state, settings);
   }
 
   Widget _buildTaskOverview(TasksState state) {
@@ -210,7 +208,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: sorted.length,
-      separatorBuilder: (_, __) => const Divider(
+      separatorBuilder: (_, _) => const Divider(
         height: 1,
         indent: 20,
         endIndent: 20,
@@ -220,7 +218,6 @@ class _TasksPageState extends ConsumerState<TasksPage> {
         final task = sorted[index];
         return _ResourceRow(
           domain: '#${task.id}',
-          type: '任务',
           preview: '${task.notCheckCount}',
           status: task.notCheckCount > 0 ? '待审核' : '完成',
           description: task.name,
@@ -242,7 +239,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     );
   }
 
-  Widget _buildTaskRows(Task task, TasksState state) {
+  Widget _buildTaskRows(Task task, TasksState state, AppSettings settings) {
     final isLoading = state.loadingTasks.contains(task.id);
     final error = state.taskErrors[task.id];
     final jobs = state.jobsByTask[task.id];
@@ -281,7 +278,12 @@ class _TasksPageState extends ConsumerState<TasksPage> {
 
     final rows = <_EpRow>[];
     for (final job in jobs) {
-      for (final jobId in job.displayJobIds) {
+      final jobIds = job.displayJobIds;
+      final hasEpisodes = jobIds.any(
+        (jobId) => (state.epsByJob['${task.id}_$jobId']?.isNotEmpty ?? false),
+      );
+      if (!settings.showAllJobs && !hasEpisodes) continue;
+      for (final jobId in jobIds) {
         final eps = state.epsByJob['${task.id}_$jobId'];
         if (eps == null || eps.isEmpty) {
           rows.add(_EpRow.empty(task, jobId));
@@ -307,7 +309,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
         ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: rows.length,
-          separatorBuilder: (_, __) => const Divider(
+          separatorBuilder: (_, _) => const Divider(
             height: 1,
             indent: 20,
             endIndent: 20,
@@ -334,8 +336,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     if (ep == null) {
       return _ResourceRow(
         domain: '#${row.task.id}',
-        type: 'Job',
-        preview: '-',
+         preview: '-',
         status: '无 EP',
         description: 'Job ${row.jobId}',
         size: '0 EP',
@@ -361,7 +362,6 @@ class _TasksPageState extends ConsumerState<TasksPage> {
 
     return _ResourceRow(
       domain: '#${row.task.id}',
-      type: '图片',
       preview: 'EP',
       status: status,
       description: '${row.task.name} · Job ${row.jobId} · EP ${ep.id}',
@@ -372,6 +372,11 @@ class _TasksPageState extends ConsumerState<TasksPage> {
         icon: Icons.open_in_new,
         tooltip: '打开 EP',
         onPressed: () => _onEpTap(row.task.id, row.jobId, ep.id, epKey),
+      ),
+      leadingAction: _RowAction(
+        icon: Icons.done_all,
+        tooltip: '标记审核完成并计入统计',
+        onPressed: () => ref.read(tasksProvider.notifier).onEpisodeReviewed(ep.id),
       ),
       trailingAction: _RowAction(
         icon: Icons.play_arrow_rounded,
@@ -441,10 +446,10 @@ class _TasksPageState extends ConsumerState<TasksPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _FooterLink('证书下载', () {}),
-          _FooterLink('软件源码', () {}),
-          _FooterLink('帮助支持', () {}),
-          _FooterLink('更新日志', () {}),
+          _FooterLink('证书下载', () => _openUrl('https://github.com/Hongwei-name/Genie-Studio-App/releases')),
+          _FooterLink('软件源码', () => _openUrl('https://github.com/Hongwei-name/Genie-Studio-App')),
+          _FooterLink('帮助支持', () => _openUrl('https://github.com/Hongwei-name/Genie-Studio-App/issues')),
+          _FooterLink('更新日志', () => _openUrl('https://github.com/Hongwei-name/Genie-Studio-App/releases')),
           const Spacer(),
           Text(
             state.lastUpdated == null
@@ -455,6 +460,15 @@ class _TasksPageState extends ConsumerState<TasksPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _openUrl(String value) async {
+    final uri = Uri.parse(value);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ref.read(logProvider.notifier).warn('无法打开链接：$value');
+      }
+    }
   }
 
   void _onEpTap(int taskId, int jobId, int epId, String epKey) async {
@@ -657,17 +671,36 @@ class _ToolbarSquareButton extends StatelessWidget {
   }
 }
 
-class _HeaderCheckbox extends StatelessWidget {
-  const _HeaderCheckbox();
+class _BackHeaderButton extends StatelessWidget {
+  const _BackHeaderButton({required this.width, required this.onPressed});
+
+  final double width;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 15,
-      height: 15,
-      decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.separator),
-        borderRadius: BorderRadius.circular(2),
+    return SizedBox(
+      width: width,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Tooltip(
+          message: '返回任务列表',
+          child: IconButton(
+            onPressed: onPressed,
+            icon: const Icon(Icons.arrow_back_rounded),
+            iconSize: 18,
+            color: AppTheme.textSecondary,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            style: IconButton.styleFrom(
+              backgroundColor: AppTheme.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                side: const BorderSide(color: AppTheme.separatorLight),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -712,7 +745,6 @@ class _HeaderCell extends StatelessWidget {
 class _ResourceRow extends StatelessWidget {
   const _ResourceRow({
     required this.domain,
-    required this.type,
     required this.preview,
     required this.status,
     required this.description,
@@ -720,11 +752,11 @@ class _ResourceRow extends StatelessWidget {
     required this.path,
     required this.statusColor,
     required this.action,
+    this.leadingAction,
     this.trailingAction,
   });
 
   final String domain;
-  final String type;
   final String preview;
   final String status;
   final String description;
@@ -732,38 +764,31 @@ class _ResourceRow extends StatelessWidget {
   final String path;
   final Color statusColor;
   final _RowAction action;
+  final _RowAction? leadingAction;
   final _RowAction? trailingAction;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 46,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      height: 58,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+      ),
       child: Row(
         children: [
-          const SizedBox(width: 34, child: _HeaderCheckbox()),
-          SizedBox(width: 88, child: _RowText(domain)),
-          SizedBox(width: 94, child: _RowText(type)),
-          SizedBox(width: 92, child: _RowText(preview)),
+          SizedBox(width: 88, child: _DomainCell(domain)),
+          SizedBox(width: 92, child: _PreviewCell(preview)),
           SizedBox(
             width: 88,
-            child: Row(
-              children: [
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 6),
-                Expanded(child: _RowText(status)),
-              ],
-            ),
+            child: _StatusPill(label: status, color: statusColor),
           ),
-          Expanded(child: _RowText(description, strong: true)),
+          Expanded(child: _DescriptionCell(description)),
           SizedBox(width: 118, child: _RowText(size)),
-          SizedBox(width: 180, child: _RowText(path)),
+          SizedBox(width: 180, child: _PathCell(path)),
           SizedBox(
-            width: 116,
+            width: 76,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -778,11 +803,138 @@ class _ResourceRow extends StatelessWidget {
   }
 }
 
+class _DomainCell extends StatelessWidget {
+  const _DomainCell(this.value);
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      value,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: AppTheme.textSecondary,
+      ),
+    );
+  }
+}
+
+class _PreviewCell extends StatelessWidget {
+  const _PreviewCell(this.value);
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          value == 'EP' ? Icons.image_outlined : Icons.layers_outlined,
+          size: 15,
+          color: AppTheme.textTertiary,
+        ),
+        const SizedBox(width: 6),
+        _RowText(value),
+      ],
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DescriptionCell extends StatelessWidget {
+  const _DescriptionCell(this.value);
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 16),
+      child: Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textPrimary,
+        ),
+      ),
+    );
+  }
+}
+
+class _PathCell extends StatelessWidget {
+  const _PathCell(this.value);
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      value,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontSize: 11,
+        color: AppTheme.textTertiary,
+        fontFamily: 'monospace',
+      ),
+    );
+  }
+}
+
 class _RowText extends StatelessWidget {
-  const _RowText(this.text, {this.strong = false});
+  const _RowText(this.text);
 
   final String text;
-  final bool strong;
 
   @override
   Widget build(BuildContext context) {
@@ -792,8 +944,7 @@ class _RowText extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
         fontSize: 12,
-        fontWeight: strong ? FontWeight.w500 : FontWeight.w400,
-        color: strong ? AppTheme.textPrimary : AppTheme.textSecondary,
+        color: AppTheme.textSecondary,
       ),
     );
   }
@@ -816,6 +967,12 @@ class _SmallRowButton extends StatelessWidget {
           icon: Icon(action.icon, size: 16),
           padding: EdgeInsets.zero,
           color: AppTheme.textSecondary,
+          style: IconButton.styleFrom(
+            backgroundColor: AppTheme.surfaceHover,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+            ),
+          ),
         ),
       ),
     );

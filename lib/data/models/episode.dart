@@ -15,20 +15,22 @@ class Episode {
 
   factory Episode.fromJson(Map<String, dynamic> json) {
     EpisodeStage? currentStage;
-    if (json['current_stage'] is Map<String, dynamic>) {
-      currentStage = EpisodeStage.fromJson(json['current_stage'] as Map<String, dynamic>);
+    if (json['current_stage'] is Map) {
+      currentStage = EpisodeStage.fromJson(
+        Map<String, dynamic>.from(json['current_stage'] as Map),
+      );
     }
     final workflow = <StageWorkflow>[];
     if (json['stage_workflow'] is List) {
       for (final s in json['stage_workflow'] as List) {
-        if (s is Map<String, dynamic>) {
-          workflow.add(StageWorkflow.fromJson(s));
+        if (s is Map) {
+          workflow.add(StageWorkflow.fromJson(Map<String, dynamic>.from(s)));
         }
       }
     }
     return Episode(
       id: (json['id'] as num?)?.toInt() ?? 0,
-      status: (json['status'] as num?)?.toInt() ?? 0,
+      status: _parseStatus(json['status']),
       currentStage: currentStage,
       stageWorkflow: workflow,
     );
@@ -36,11 +38,11 @@ class Episode {
 
   /// 是否验收失败（对齐原脚本 isEpFailed）
   bool get isFailed {
+    if (stageWorkflow.isEmpty) return status == 2;
     final cs = currentStage;
     if (cs == null || cs.stageCode != 'screening' || cs.stageStatus != 'pending') {
       return false;
     }
-    if (stageWorkflow.isEmpty) return false;
 
     // 从后往前找最后一次验收失败（reject）
     int lastRejectIdx = -1;
@@ -167,6 +169,20 @@ class EpisodeStage {
       stageCode: (json['stage_code'] as String?) ?? '',
       stageStatus: (json['stage_status'] as String?) ?? '',
     );
+  }
+}
+
+int _parseStatus(dynamic value) {
+  if (value is num) return value.toInt();
+  switch (value) {
+    case 'check_reject':
+    case 'failed':
+      return 2;
+    case 'check_pass':
+    case 'success':
+      return 1;
+    default:
+      return int.tryParse('$value') ?? 0;
   }
 }
 

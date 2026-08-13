@@ -353,10 +353,10 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
             );
           }),
           _buildFooterAction(Icons.translate, 'English', () {
-            ref.read(logProvider.notifier).info('语言切换暂未配置');
+            ref.read(logProvider.notifier).info('当前版本仅提供中文界面');
           }),
           _buildFooterAction(Icons.dark_mode_outlined, '主题更换', () {
-            ref.read(logProvider.notifier).info('当前使用 macOS 浅色主题');
+            ref.read(logProvider.notifier).info('当前使用 macOS 浅色主题，主题切换将在后续版本提供');
           }),
           _buildFooterAction(Icons.help_outline, '关于我们', () {
             showAboutDialog(

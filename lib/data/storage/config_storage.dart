@@ -17,6 +17,7 @@ class ConfigStorage {
   static const _kSettings = 'app_settings';
   static const _kStats = 'ep_complete_stat';
   static const _kFrames = 'ep_total_frames';
+  static const _kCompletedEps = 'completed_eps';
   static const _kOpenedEps = 'opened_eps';
 
   static Future<ConfigStorage> create() async {
@@ -83,6 +84,20 @@ class ConfigStorage {
     framesMap[today] = 0;
     await _saveMap(_kStats, statsMap);
     await _saveMap(_kFrames, framesMap);
+  }
+
+  bool isEpisodeCompletedToday(int episodeId) {
+    final map = _loadMap(_kCompletedEps);
+    final timestamp = map['$episodeId'];
+    if (timestamp == null) return false;
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    return date.toIso8601String().substring(0, 10) == FormatUtils.todayString();
+  }
+
+  Future<void> markEpisodeCompleted(int episodeId) async {
+    final map = _loadMap(_kCompletedEps);
+    map['$episodeId'] = DateTime.now().millisecondsSinceEpoch;
+    await _saveMap(_kCompletedEps, map);
   }
 
   // ========== 已打开 EP 记录 ==========

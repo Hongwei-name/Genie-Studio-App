@@ -43,39 +43,23 @@ class ReviewRepository {
   Future<List<Task>> fetchAllTasks({
     required int concurrency,
   }) async {
-    // 先获取第1页
     final firstRes = await _api.fetchTasks(pageNum: 1);
     if (firstRes.isUnauthorized) {
       throw const ApiException('登录失效', type: ApiErrorType.unauthorized);
     }
     if (!firstRes.isSuccess || firstRes.data == null) return [];
 
-    final firstTasks = parseList(firstRes.data, Task.fromJson);
-    if (firstTasks.length < AppConfig.taskPageSize) {
-      return firstTasks;
-    }
+    final allTasks = parseList(firstRes.data, Task.fromJson);
+    if (allTasks.length < AppConfig.taskPageSize) return allTasks;
 
-    // 第1页满，并发获取剩余页
-    final remainingPages = List.generate(
-      AppConfig.maxTaskPageEstimate - 1,
-      (i) => i + 2,
-    );
-
-    final results = await ConcurrencyUtils.runConcurrent<int, List<Task>>(
-      remainingPages,
-      (pageNum, _) async {
-        final res = await _api.fetchTasks(pageNum: pageNum);
-        if (!res.isSuccess || res.data == null) return <Task>[];
-        return parseList(res.data, Task.fromJson);
-      },
-      concurrency,
-    );
-
-    final allTasks = List<Task>.from(firstTasks);
-    for (final pageTasks in results) {
-      if (pageTasks == null) continue;  // 网络抖动跳过，不中断
+    var pageNum = 2;
+    while (true) {
+      final res = await _api.fetchTasks(pageNum: pageNum);
+      if (!res.isSuccess || res.data == null) break;
+      final pageTasks = parseList(res.data, Task.fromJson);
       allTasks.addAll(pageTasks);
       if (pageTasks.length < AppConfig.taskPageSize) break;
+      pageNum++;
     }
     return allTasks;
   }
@@ -99,13 +83,13 @@ class ReviewRepository {
 
   /// 获取 Job 的待审 EP（分页）
   /// 对齐原脚本 fetchEps（只取第 1 页）/ fetchAllEpsForJob（全量分页）
-  /// [maxPages] 限制最大页数，默认 3 页（30 条）避免请求过多被限流
+  /// [maxPages] 限制最大页数，0 表示获取全部分页。
   /// 失败扫描时传 maxPages=0 表示不限（全量）
   Future<List<Episode>> fetchAllEpisodesForJob({
     required int taskId,
     required int jobId,
     bool onlyStatus9 = true,
-    int maxPages = 3,
+    int maxPages = 0,
   }) async {
     final allEps = <Episode>[];
     int pageNum = 1;

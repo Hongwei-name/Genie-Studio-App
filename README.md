@@ -43,6 +43,18 @@ flutter build windows --release
 
 构建产物位于 `build/windows/x64/runner/Release/`。
 
+## Windows 发布签名
+
+企业 Windows 策略可能拒绝加载未签名的 Flutter exe 或插件 DLL。发布时必须使用企业信任链中的代码签名证书；自签名证书不能绕过 WDAC 或 Code Integrity 策略。
+
+先将证书和私钥安装到当前用户的个人证书存储，然后执行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\sign-windows-release.ps1 -CertificateThumbprint YOUR_40_CHAR_THUMBPRINT
+```
+
+脚本会构建 Release 包，对 exe 和全部 DLL 添加 SHA-256 签名及时间戳，并逐个验证签名。证书必须包含可用私钥，并且其根证书和发布者证书必须被目标计算机的企业策略信任。
+
 ## 配置说明
 
 首次使用需前往「配置」页面：

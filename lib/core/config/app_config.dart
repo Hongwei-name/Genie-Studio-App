@@ -6,6 +6,10 @@ class AppConfig {
   /// API 基础地址
   static const String apiBase = 'https://tgs-geniestudio.agibot.com';
 
+  /// WebView 注入 Cookie 时使用的登录入口
+  static const String webViewLoginUrl =
+      'https://tgs-geniestudio.agibot.com/login/gxcy';
+
   /// 默认刷新间隔（毫秒）
   static const int defaultRefreshInterval = 5000;
 
