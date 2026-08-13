@@ -1,5 +1,5 @@
 ﻿# ============================================================
-# 智元标注审核助手 - 一键打包脚本
+# zero_K-Genie - 一键打包脚本
 # ============================================================
 # 使用方法:
 #   1. 打开 PowerShell
@@ -8,7 +8,7 @@
 # ============================================================
 
 Write-Host "=====================================" -ForegroundColor Cyan
-Write-Host "   智元标注审核助手 - 打包工具" -ForegroundColor Cyan
+Write-Host "   zero_K-Genie - 打包工具" -ForegroundColor Cyan
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -74,7 +74,7 @@ if (Test-Path $releaseDir) {
     }
     Write-Host ""
     Write-Host "📝 下一步:" -ForegroundColor Cyan
-    Write-Host "   1. 运行 installer\build_setup.bat 生成安装程序" -ForegroundColor White
+    Write-Host "   1. 运行 installer\Generate-Setup.ps1 生成安装程序" -ForegroundColor White
     Write-Host "   2. 或者将 Release 文件夹打包发给用户" -ForegroundColor White
     Write-Host ""
 } else {

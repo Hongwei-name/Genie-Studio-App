@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -17,7 +17,7 @@ Future<void> main() async {
   windowManager.setAsFrameless();
   // 开启窗口透明，让圆角裁切后不露出底层黑色画布
   windowManager.setBackgroundColor(Colors.transparent);
-  windowManager.setTitle('智元标注审核助手');
+  windowManager.setTitle('zero_K-Genie');
   windowManager.setMinimumSize(const Size(800, 500));
 
   // 初始化配置存储
@@ -35,7 +35,7 @@ Future<void> main() async {
       overrides: [
         configStorageProvider.overrideWithValue(storage),
       ],
-      child: const GenieReviewApp(),
+      child: const ZeroKGenieApp(),
     ),
   );
 }

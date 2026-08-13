@@ -1,4 +1,4 @@
-// Microsoft Visual C++ generated resource script.
+﻿// Microsoft Visual C++ generated resource script.
 //
 #pragma code_page(65001)
 #include "resource.h"
@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.agibot" "\0"
-            VALUE "FileDescription", "genie_review_assistant" "\0"
+            VALUE "CompanyName", "zero_K" "\0"
+            VALUE "FileDescription", "zero_K-Genie" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "genie_review_assistant" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.agibot. All rights reserved." "\0"
-            VALUE "OriginalFilename", "genie_review_assistant.exe" "\0"
-            VALUE "ProductName", "genie_review_assistant" "\0"
+            VALUE "InternalName", "zero_k_genie" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2024 zero_K. All rights reserved." "\0"
+            VALUE "OriginalFilename", "zero_k_genie.exe" "\0"
+            VALUE "ProductName", "zero_K-Genie" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
@@ -119,3 +119,4 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
+

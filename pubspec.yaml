@@ -1,5 +1,5 @@
-﻿name: genie_review_assistant
-description: "智元标注审核助手桌面端 - 解决并发能力不足及功能弱的问题"
+﻿name: zero_k_genie
+description: "zero_K-Genie 智元标注审核助手桌面端 - 解决并发能力不足及功能弱的问题"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -23,22 +23,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  msix: ^3.16.7
 
 flutter:
   uses-material-design: true
-
-# MSIX 打包配置
-msix_config:
-  display_name: 智元标注审核助手
-  publisher_display_name: GenieStudio
-  identity_name: com.geniestudio.reviewassistant
-  msix_version: 1.0.0.0
-  logo_path: windows\runner\resources\app_icon.ico
-  capabilities: internetClient
-  languages: zh-cn
-  file_extension:
-    - .json
-  execution_alias: genie-review
-  install_certificate: false
-  sign_msix: false

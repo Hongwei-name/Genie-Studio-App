@@ -1,10 +1,10 @@
-# Project-level configuration.
+﻿# Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
-project(genie_review_assistant LANGUAGES CXX)
+project(zero_k_genie LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "genie_review_assistant")
+set(BINARY_NAME "zero_k_genie")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -43,8 +43,8 @@ function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_options(${TARGET} PRIVATE /EHsc)
   target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
   target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
-  # 静默 VS 2022 v18 弃用 <experimental/coroutine> 的 static_assert 错误
-  # 用于兼容 webview_windows 0.4.0 等老插件
+  # 闈欓粯 VS 2022 v18 寮冪敤 <experimental/coroutine> 鐨?static_assert 閿欒
+  # 鐢ㄤ簬鍏煎 webview_windows 0.4.0 绛夎€佹彃浠?
   target_compile_definitions(${TARGET} PRIVATE
     "_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS")
 endfunction()
@@ -110,3 +110,4 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
