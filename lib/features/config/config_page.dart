@@ -59,140 +59,168 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
-    return ListView(
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 22, 24, 28),
-      children: [
-        // 标题栏
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '系统设置',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题栏
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '系统设置',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    '管理连接、自动化行为与本地数据维护',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                  ),
-                ],
+                    SizedBox(height: 5),
+                    Text(
+                      '管理连接、自动化行为与本地数据维护',
+                      style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            _statusBadge(settings.cookie.isNotEmpty, settings.isPaused),
-          ],
-        ),
-        const SizedBox(height: 22),
-
-        // 认证部分
-        _buildSection(
-          title: '认证',
-          children: [
-            _buildCookieRow(),
-            if (settings.cookie.isEmpty) _buildLoginButton(),
-          ],
-        ),
-
-        // 刷新设置
-        _buildSection(
-          title: '刷新设置',
-          children: [
-            _buildRefreshRow(),
-            _buildSwitchRow(
-              label: '暂停刷新',
-              desc: '暂停任务列表自动刷新',
-              value: ref.watch(settingsProvider).isPaused,
-              onChanged: (v) => _togglePause(v),
-            ),
-          ],
-        ),
-
-        // 并发与性能
-        _buildSection(
-          title: '并发与性能',
-          children: [
-            _buildConcurrencyRow(),
-          ],
-        ),
-
-        // 自动打开
-        _buildSection(
-          title: '自动打开',
-          children: [
-            _buildSwitchRow(
-              label: '自动打开新EP',
-              desc: '仅自动打开未打开、非验收失败的普通EP',
-              value: _autoOpen,
-              onChanged: (v) => setState(() => _autoOpen = v),
-            ),
-            _buildEpOpenModeRow(),
-          ],
-        ),
-
-        // 验收失败筛选
-        _buildSection(
-          title: '验收失败筛选',
-          children: [
-            _buildScreenerRow(),
-            _buildSwitchRow(
-              label: '显示所有Job',
-              desc: '关闭时只显示有待审核EP的Job',
-              value: _showAllJobs,
-              onChanged: (v) => setState(() => _showAllJobs = v),
-            ),
-          ],
-        ),
-
-        // 统计与日志
-        _buildSection(
-          title: '统计与日志',
-          children: [
-            _buildActionRow(
-              label: '重置今日统计',
-              desc: '重置今日完成数和视频时长',
-              buttonText: '重置',
-              isDestructive: true,
-              onTap: _resetStats,
-            ),
-            _buildActionRow(
-              label: '清空日志',
-              desc: '清空所有日志记录',
-              buttonText: '清空',
-              onTap: _clearLogs,
-            ),
-            _buildActionRow(
-              label: '重新扫描验收失败EP',
-              desc: '清空缓存并重新扫描所有任务',
-              buttonText: '扫描',
-              isDestructive: true,
-              onTap: _rescanFailEps,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // 保存按钮
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: FilledButton(
-            onPressed: _save,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(44),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              ),
-            ),
-            child: const Text('保存配置'),
+              _statusBadge(settings.cookie.isNotEmpty, settings.isPaused),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 22),
+
+          // 两列布局
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 左列
+              Expanded(
+                child: Column(
+                  children: [
+                    // 认证部分
+                    _buildSection(
+                      title: '认证',
+                      children: [
+                        _buildCookieRow(),
+                        if (settings.cookie.isEmpty) _buildLoginButton(),
+                      ],
+                    ),
+
+                    // 刷新设置
+                    _buildSection(
+                      title: '刷新设置',
+                      children: [
+                        _buildRefreshRow(),
+                        _buildSwitchRow(
+                          label: '暂停刷新',
+                          desc: '暂停任务列表自动刷新',
+                          value: ref.watch(settingsProvider).isPaused,
+                          onChanged: (v) => _togglePause(v),
+                        ),
+                      ],
+                    ),
+
+                    // 并发与性能
+                    _buildSection(
+                      title: '并发与性能',
+                      children: [
+                        _buildConcurrencyRow(),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 16),
+
+              // 右列
+              Expanded(
+                child: Column(
+                  children: [
+                    // 自动打开
+                    _buildSection(
+                      title: '自动打开',
+                      children: [
+                        _buildSwitchRow(
+                          label: '自动打开新EP',
+                          desc: '仅自动打开未打开、非验收失败的普通EP',
+                          value: _autoOpen,
+                          onChanged: (v) => setState(() => _autoOpen = v),
+                        ),
+                        _buildEpOpenModeRow(),
+                      ],
+                    ),
+
+                    // 验收失败筛选
+                    _buildSection(
+                      title: '验收失败筛选',
+                      children: [
+                        _buildScreenerRow(),
+                        _buildSwitchRow(
+                          label: '显示所有Job',
+                          desc: '关闭时只显示有待审核EP的Job',
+                          value: _showAllJobs,
+                          onChanged: (v) => setState(() => _showAllJobs = v),
+                        ),
+                      ],
+                    ),
+
+                    // 统计与日志
+                    _buildSection(
+                      title: '统计与日志',
+                      children: [
+                        _buildActionRow(
+                          label: '重置今日统计',
+                          desc: '重置今日完成数和视频时长',
+                          buttonText: '重置',
+                          isDestructive: true,
+                          onTap: _resetStats,
+                        ),
+                        _buildActionRow(
+                          label: '清空日志',
+                          desc: '清空所有日志记录',
+                          buttonText: '清空',
+                          onTap: _clearLogs,
+                        ),
+                        _buildActionRow(
+                          label: '重新扫描验收失败EP',
+                          desc: '清空缓存并重新扫描所有任务',
+                          buttonText: '扫描',
+                          isDestructive: true,
+                          onTap: _rescanFailEps,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // 保存按钮
+          Center(
+            child: SizedBox(
+              width: 200,
+              child: FilledButton(
+                onPressed: _save,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  ),
+                ),
+                child: const Text('保存配置'),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -253,6 +281,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
             decoration: BoxDecoration(
               color: AppTheme.surface,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: AppTheme.separatorLight),
             ),
             child: Column(
               children: [

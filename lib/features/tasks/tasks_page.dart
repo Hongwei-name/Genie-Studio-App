@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -137,7 +137,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
           const Expanded(child: _HeaderCell(label: '描述', icon: Icons.search)),
           const _HeaderCell(width: 118, label: '资源大小', icon: Icons.arrow_downward),
           const _HeaderCell(width: 180, label: '保存路径'),
-          const _HeaderCell(width: 116, label: '操作', icon: Icons.help_outline),
+          const _HeaderCell(width: 140, label: '操作', icon: Icons.help_outline),
         ],
       ),
     );
@@ -224,6 +224,12 @@ class _TasksPageState extends ConsumerState<TasksPage> {
           size: '${task.notCheckCount} EP',
           path: '选择任务后加载 Job / EP',
           statusColor: task.notCheckCount > 0 ? AppTheme.success : AppTheme.textTertiary,
+          onTap: () async {
+            ref.read(selectedTaskIdProvider.notifier).state = task.id;
+            await ref
+                .read(tasksProvider.notifier)
+                .toggleExpand(task.id, isExpanded: true);
+          },
           action: _RowAction(
             icon: Icons.chevron_right,
             tooltip: '打开任务',
@@ -336,12 +342,13 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     if (ep == null) {
       return _ResourceRow(
         domain: '#${row.task.id}',
-         preview: '-',
+        preview: '-',
         status: '无 EP',
         description: 'Job ${row.jobId}',
         size: '0 EP',
         path: 'task/${row.task.id}/job/${row.jobId}',
         statusColor: AppTheme.textTertiary,
+        onTap: () => ref.read(tasksProvider.notifier).refreshTask(row.task.id),
         action: _RowAction(
           icon: Icons.refresh,
           tooltip: '刷新任务',
@@ -368,6 +375,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
       size: isFailed ? '异常' : '待处理',
       path: 'task/${row.task.id}/job/${row.jobId}/ep/${ep.id}',
       statusColor: statusColor,
+      onTap: () => _onEpTap(row.task.id, row.jobId, ep.id, epKey),
       action: _RowAction(
         icon: Icons.open_in_new,
         tooltip: '打开 EP',
@@ -453,8 +461,8 @@ class _TasksPageState extends ConsumerState<TasksPage> {
           const Spacer(),
           Text(
             state.lastUpdated == null
-                ? '${state.tasks.length} 任务'
-                : '${state.tasks.length} 任务 · ${state.totalPendingCount} 待审',
+                ? '${state.tasks.length} 个任务'
+                : '${state.tasks.length} 个任务 · ${state.totalPendingCount} 待审',
             style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
           ),
         ],
@@ -752,6 +760,7 @@ class _ResourceRow extends StatelessWidget {
     required this.path,
     required this.statusColor,
     required this.action,
+    this.onTap,
     this.leadingAction,
     this.trailingAction,
   });
@@ -764,40 +773,53 @@ class _ResourceRow extends StatelessWidget {
   final String path;
   final Color statusColor;
   final _RowAction action;
+  final VoidCallback? onTap;
   final _RowAction? leadingAction;
   final _RowAction? trailingAction;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 58,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-      ),
-      child: Row(
-        children: [
-          SizedBox(width: 88, child: _DomainCell(domain)),
-          SizedBox(width: 92, child: _PreviewCell(preview)),
-          SizedBox(
-            width: 88,
-            child: _StatusPill(label: status, color: statusColor),
-          ),
-          Expanded(child: _DescriptionCell(description)),
-          SizedBox(width: 118, child: _RowText(size)),
-          SizedBox(width: 180, child: _PathCell(path)),
-          SizedBox(
-            width: 76,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (trailingAction != null) _SmallRowButton(action: trailingAction!),
-                _SmallRowButton(action: action),
-              ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      child: Container(
+        height: 58,
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        ),
+        child: Row(
+          children: [
+            SizedBox(width: 88, child: _DomainCell(domain)),
+            SizedBox(width: 92, child: _PreviewCell(preview)),
+            SizedBox(
+              width: 88,
+              child: _StatusPill(label: status, color: statusColor),
             ),
-          ),
-        ],
+            Expanded(child: _DescriptionCell(description)),
+            SizedBox(width: 118, child: _RowText(size)),
+            SizedBox(width: 180, child: _PathCell(path)),
+            SizedBox(
+              width: 140,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (leadingAction != null) ...[
+                    _SmallRowButton(action: leadingAction!),
+                    const SizedBox(width: 6),
+                  ],
+                  if (trailingAction != null) ...[
+                    _SmallRowButton(action: trailingAction!),
+                    const SizedBox(width: 6),
+                  ],
+                  _SmallRowButton(action: action),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -960,11 +982,11 @@ class _SmallRowButton extends StatelessWidget {
     return Tooltip(
       message: action.tooltip,
       child: SizedBox(
-        width: 28,
-        height: 28,
+        width: 32,
+        height: 32,
         child: IconButton(
           onPressed: action.onPressed,
-          icon: Icon(action.icon, size: 16),
+          icon: Icon(action.icon, size: 18),
           padding: EdgeInsets.zero,
           color: AppTheme.textSecondary,
           style: IconButton.styleFrom(
