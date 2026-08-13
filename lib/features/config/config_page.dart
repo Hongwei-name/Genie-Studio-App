@@ -631,9 +631,8 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     required IconData icon,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
       child: Container(
         width: 32,
         height: 32,
@@ -940,3 +939,4 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     );
   }
 }
+

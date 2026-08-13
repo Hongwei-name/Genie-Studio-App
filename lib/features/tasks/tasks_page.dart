@@ -132,12 +132,9 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                 ? null
                 : () => ref.read(selectedTaskIdProvider.notifier).state = null,
           ),
-          const _HeaderCell(width: 92, label: '预览'),
           const _HeaderCell(width: 88, label: '状态'),
           const Expanded(child: _HeaderCell(label: '描述', icon: Icons.search)),
-          const _HeaderCell(width: 118, label: '资源大小', icon: Icons.arrow_downward),
-          const _HeaderCell(width: 180, label: '保存路径'),
-          const _HeaderCell(width: 140, label: '操作', icon: Icons.help_outline),
+          const _HeaderCell(width: 120, label: '操作'),
         ],
       ),
     );
@@ -218,11 +215,8 @@ class _TasksPageState extends ConsumerState<TasksPage> {
         final task = sorted[index];
         return _ResourceRow(
           domain: '#${task.id}',
-          preview: '${task.notCheckCount}',
           status: task.notCheckCount > 0 ? '待审核' : '完成',
           description: task.name,
-          size: '${task.notCheckCount} EP',
-          path: '选择任务后加载 Job / EP',
           statusColor: task.notCheckCount > 0 ? AppTheme.success : AppTheme.textTertiary,
           onTap: () async {
             ref.read(selectedTaskIdProvider.notifier).state = task.id;
@@ -323,16 +317,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
           ),
           itemBuilder: (context, index) => _buildEpRow(rows[index], state),
         ),
-        if (isLoading)
-          const Positioned(
-            top: 12,
-            right: 20,
-            child: SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
+        // 移除右上角的loading
       ],
     );
   }
@@ -342,11 +327,8 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     if (ep == null) {
       return _ResourceRow(
         domain: '#${row.task.id}',
-        preview: '-',
         status: '无 EP',
         description: 'Job ${row.jobId}',
-        size: '0 EP',
-        path: 'task/${row.task.id}/job/${row.jobId}',
         statusColor: AppTheme.textTertiary,
         onTap: () => ref.read(tasksProvider.notifier).refreshTask(row.task.id),
         action: _RowAction(
@@ -369,27 +351,14 @@ class _TasksPageState extends ConsumerState<TasksPage> {
 
     return _ResourceRow(
       domain: '#${row.task.id}',
-      preview: 'EP',
       status: status,
       description: '${row.task.name} · Job ${row.jobId} · EP ${ep.id}',
-      size: isFailed ? '异常' : '待处理',
-      path: 'task/${row.task.id}/job/${row.jobId}/ep/${ep.id}',
       statusColor: statusColor,
       onTap: () => _onEpTap(row.task.id, row.jobId, ep.id, epKey),
       action: _RowAction(
         icon: Icons.open_in_new,
         tooltip: '打开 EP',
         onPressed: () => _onEpTap(row.task.id, row.jobId, ep.id, epKey),
-      ),
-      leadingAction: _RowAction(
-        icon: Icons.done_all,
-        tooltip: '标记审核完成并计入统计',
-        onPressed: () => ref.read(tasksProvider.notifier).onEpisodeReviewed(ep.id),
-      ),
-      trailingAction: _RowAction(
-        icon: Icons.play_arrow_rounded,
-        tooltip: '预览首帧',
-        onPressed: () => _openPreview(row.task.id, row.jobId, state),
       ),
     );
   }
@@ -487,23 +456,6 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     );
     await ref.read(tasksProvider.notifier).markEpOpened(epKey);
     ref.read(epOpenRequestProvider.notifier).request(url);
-  }
-
-  void _openPreview(int taskId, int jobId, TasksState state) async {
-    final previewKey = '${taskId}_$jobId';
-    final url = state.previewUrls[previewKey];
-    if (url != null) {
-      ref.read(epOpenRequestProvider.notifier).request(url);
-      return;
-    }
-    await ref.read(tasksProvider.notifier).fetchPreviewUrl(taskId, jobId);
-    if (!mounted) return;
-    final newUrl = ref.read(tasksProvider).previewUrls[previewKey];
-    if (newUrl != null) {
-      ref.read(epOpenRequestProvider.notifier).request(newUrl);
-    } else {
-      ref.read(logProvider.notifier).warn('获取预览链接失败');
-    }
   }
 }
 
@@ -753,29 +705,19 @@ class _HeaderCell extends StatelessWidget {
 class _ResourceRow extends StatelessWidget {
   const _ResourceRow({
     required this.domain,
-    required this.preview,
     required this.status,
     required this.description,
-    required this.size,
-    required this.path,
     required this.statusColor,
     required this.action,
     this.onTap,
-    this.leadingAction,
-    this.trailingAction,
   });
 
   final String domain;
-  final String preview;
   final String status;
   final String description;
-  final String size;
-  final String path;
   final Color statusColor;
   final _RowAction action;
   final VoidCallback? onTap;
-  final _RowAction? leadingAction;
-  final _RowAction? trailingAction;
 
   @override
   Widget build(BuildContext context) {
@@ -793,27 +735,16 @@ class _ResourceRow extends StatelessWidget {
         child: Row(
           children: [
             SizedBox(width: 88, child: _DomainCell(domain)),
-            SizedBox(width: 92, child: _PreviewCell(preview)),
             SizedBox(
               width: 88,
               child: _StatusPill(label: status, color: statusColor),
             ),
             Expanded(child: _DescriptionCell(description)),
-            SizedBox(width: 118, child: _RowText(size)),
-            SizedBox(width: 180, child: _PathCell(path)),
             SizedBox(
-              width: 140,
+              width: 120,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (leadingAction != null) ...[
-                    _SmallRowButton(action: leadingAction!),
-                    const SizedBox(width: 6),
-                  ],
-                  if (trailingAction != null) ...[
-                    _SmallRowButton(action: trailingAction!),
-                    const SizedBox(width: 6),
-                  ],
                   _SmallRowButton(action: action),
                 ],
               ),
@@ -841,27 +772,6 @@ class _DomainCell extends StatelessWidget {
         fontWeight: FontWeight.w600,
         color: AppTheme.textSecondary,
       ),
-    );
-  }
-}
-
-class _PreviewCell extends StatelessWidget {
-  const _PreviewCell(this.value);
-
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          value == 'EP' ? Icons.image_outlined : Icons.layers_outlined,
-          size: 15,
-          color: AppTheme.textTertiary,
-        ),
-        const SizedBox(width: 6),
-        _RowText(value),
-      ],
     );
   }
 }
@@ -928,45 +838,6 @@ class _DescriptionCell extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: AppTheme.textPrimary,
         ),
-      ),
-    );
-  }
-}
-
-class _PathCell extends StatelessWidget {
-  const _PathCell(this.value);
-
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      value,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        fontSize: 11,
-        color: AppTheme.textTertiary,
-        fontFamily: 'monospace',
-      ),
-    );
-  }
-}
-
-class _RowText extends StatelessWidget {
-  const _RowText(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 12,
-        color: AppTheme.textSecondary,
       ),
     );
   }
