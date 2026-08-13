@@ -30,6 +30,8 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   late bool _showAllJobs;
   bool _obscureCookie = true;
   bool _isLoggingIn = false;
+  WebviewController? _webviewController;
+  BuildContext? _dialogContext;
 
   @override
   void initState() {
@@ -51,6 +53,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     _cookieCtrl.dispose();
     _refreshCtrl.dispose();
     _screenerCtrl.dispose();
+    _webviewController?.dispose();
     super.dispose();
   }
 
@@ -374,19 +377,19 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     setState(() => _isLoggingIn = true);
     
     try {
-      final controller = WebviewController();
-      await controller.initialize();
+      _webviewController = WebviewController();
+      await _webviewController!.initialize();
       
       // 监听 URL 变化，检测登录完成
-      controller.url.listen((url) {
+      _webviewController!.url.listen((url) {
         if (url != null && !url.contains('/login')) {
           // 登录完成，提取 Cookie
-          _extractCookieFromWebView(controller);
+          _extractCookieFromWebView();
         }
       });
 
       // 打开登录页面
-      await controller.loadUrl('https://tgs-geniestudio.agibot.com/login/gxcy');
+      await _webviewController!.loadUrl('https://tgs-geniestudio.agibot.com/login/gxcy');
 
       if (!mounted) return;
 
@@ -394,53 +397,54 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
       await showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          contentPadding: EdgeInsets.zero,
-          content: Container(
-            width: 600,
-            height: 500,
-            child: Column(
-              children: [
-                // 标题栏
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    border: Border(
-                      bottom: BorderSide(color: AppTheme.separator),
+        builder: (ctx) {
+          _dialogContext = ctx;
+          return AlertDialog(
+            contentPadding: EdgeInsets.zero,
+            content: Container(
+              width: 600,
+              height: 500,
+              child: Column(
+                children: [
+                  // 标题栏
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surface,
+                      border: Border(
+                        bottom: BorderSide(color: AppTheme.separator),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text(
+                          '登录',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            _closeLoginDialog();
+                          },
+                        ),
+                      ],
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      const Text(
-                        '登录',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () {
-                          controller.dispose();
-                          Navigator.of(ctx).pop();
-                        },
-                      ),
-                    ],
+                  // WebView
+                  Expanded(
+                    child: Webview(_webviewController!),
                   ),
-                ),
-                // WebView
-                Expanded(
-                  child: Webview(controller),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       );
 
-      controller.dispose();
     } catch (e) {
       ref.read(logProvider.notifier).error('登录失败: $e');
       _showToast('登录失败: $e');
@@ -451,11 +455,23 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     }
   }
 
+  /// 关闭登录对话框
+  void _closeLoginDialog() {
+    if (_dialogContext != null && Navigator.of(_dialogContext!).canPop()) {
+      Navigator.of(_dialogContext!).pop();
+      _dialogContext = null;
+    }
+    _webviewController?.dispose();
+    _webviewController = null;
+  }
+
   /// 从 WebView 提取 Cookie
-  Future<void> _extractCookieFromWebView(WebviewController controller) async {
+  Future<void> _extractCookieFromWebView() async {
+    if (_webviewController == null) return;
+    
     try {
       // 执行 JavaScript 获取 Cookie
-      final result = await controller.executeScript('document.cookie');
+      final result = await _webviewController!.executeScript('document.cookie');
       if (result != null && result.toString().isNotEmpty) {
         final cookie = result.toString();
         setState(() {
@@ -466,7 +482,9 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
         await _save();
         
         if (mounted) {
-          Navigator.of(context).pop(); // 关闭 WebView
+          // 关闭登录对话框
+          _closeLoginDialog();
+          
           _showToast('Cookie 获取成功！');
           ref.read(logProvider.notifier).success('登录成功，Cookie 已获取');
         }
