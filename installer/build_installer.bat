@@ -6,6 +6,7 @@ echo =====================================
 echo.
 
 cd /d "%~dp0"
+cd ..
 
 echo [1/3] ?????...
 call flutter clean
@@ -37,20 +38,11 @@ if %errorlevel% neq 0 (
 echo ? ????
 
 echo.
-echo [4/4] ?????...
-call dart run msix:create
-if %errorlevel% neq 0 (
-    echo ? ???????
-    pause
-    exit /b 1
-)
-
-echo.
 echo =====================================
 echo ? ?????
 echo =====================================
 echo.
-echo ?? ?????: build\windows\x64\runner\Release\
+echo ?? ????: build\windows\x64\runner\Release\
 echo.
 echo ???? Release ?????????
 echo.

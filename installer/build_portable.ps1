@@ -1,16 +1,27 @@
 ﻿# ============================================================
 # 创建便携版 ZIP 包
 # ============================================================
+# 使用方法:
+#   1. 打开 PowerShell
+#   2. 切换到项目目录: cd D:\project\Genie-Studio-App
+#   3. 运行脚本: .\installer\build_portable.ps1
+# ============================================================
 
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host "   创建便携版 ZIP 包" -ForegroundColor Cyan
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host ""
 
+# 切换到项目根目录
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = Split-Path -Parent $scriptPath
+Set-Location $projectRoot
+
 # 检查构建目录
 $releaseDir = "build\windows\x64\runner\Release"
 if (-not (Test-Path $releaseDir)) {
-    Write-Host "❌ 错误: 未找到构建目录，请先运行 build_installer.bat" -ForegroundColor Red
+    Write-Host "❌ 错误: 未找到构建目录" -ForegroundColor Red
+    Write-Host "请先运行: flutter build windows --release" -ForegroundColor Yellow
     exit 1
 }
 

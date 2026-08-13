@@ -4,13 +4,18 @@
 # 使用方法:
 #   1. 打开 PowerShell
 #   2. 切换到项目目录: cd D:\project\Genie-Studio-App
-#   3. 运行脚本: .\build_installer.ps1
+#   3. 运行脚本: .\installer\build_installer.ps1
 # ============================================================
 
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host "   智元标注审核助手 - 打包工具" -ForegroundColor Cyan
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host ""
+
+# 切换到项目根目录
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = Split-Path -Parent $scriptPath
+Set-Location $projectRoot
 
 # 检查 Flutter 是否安装
 $flutterPath = Get-Command flutter -ErrorAction SilentlyContinue
@@ -51,35 +56,28 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "✅ 构建完成" -ForegroundColor Green
 
-# 生成 MSIX 安装包
-Write-Host ""
-Write-Host "📦 正在生成 MSIX 安装包..." -ForegroundColor Yellow
-dart run msix:create
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ MSIX 生成失败" -ForegroundColor Red
-    exit 1
-}
-
 # 检查输出文件
-$msixPath = "build\windows\x64\runner\Release\genie_review_assistant.msix"
-if (Test-Path $msixPath) {
-    $fileSize = (Get-Item $msixPath).Length / 1MB
+$releaseDir = "build\windows\x64\runner\Release"
+if (Test-Path $releaseDir) {
     Write-Host ""
     Write-Host "=====================================" -ForegroundColor Green
     Write-Host "✅ 打包成功！" -ForegroundColor Green
     Write-Host "=====================================" -ForegroundColor Green
     Write-Host ""
-    Write-Host "📁 MSIX 安装包位置:" -ForegroundColor Cyan
-    Write-Host "   $msixPath" -ForegroundColor White
+    Write-Host "📁 输出目录:" -ForegroundColor Cyan
+    Write-Host "   $releaseDir" -ForegroundColor White
     Write-Host ""
-    Write-Host "📊 文件大小: $([math]::Round($fileSize, 2)) MB" -ForegroundColor Cyan
+    Write-Host "📊 包含文件:" -ForegroundColor Cyan
+    Get-ChildItem -Path $releaseDir -File | ForEach-Object {
+        $size = [math]::Round($_.Length / 1MB, 2)
+        Write-Host "   - $($_.Name) ($size MB)" -ForegroundColor White
+    }
     Write-Host ""
-    Write-Host "📝 安装说明:" -ForegroundColor Cyan
-    Write-Host "   1. 双击 msix 文件即可安装" -ForegroundColor White
-    Write-Host "   2. 支持 Windows 10 1809 及以上版本" -ForegroundColor White
-    Write-Host "   3. 安装后可在开始菜单找到应用" -ForegroundColor White
+    Write-Host "📝 下一步:" -ForegroundColor Cyan
+    Write-Host "   1. 运行 installer\build_setup.bat 生成安装程序" -ForegroundColor White
+    Write-Host "   2. 或者将 Release 文件夹打包发给用户" -ForegroundColor White
     Write-Host ""
 } else {
-    Write-Host "❌ 打包失败，未找到 MSIX 文件" -ForegroundColor Red
+    Write-Host "❌ 打包失败，未找到输出目录" -ForegroundColor Red
     exit 1
 }

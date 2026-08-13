@@ -35,20 +35,20 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 ChangesAssociations=yes
 DefaultGroupName={#MyAppName}
-LicenseFile=D:\project\Genie-Studio-App\LICENSE.txt
+LicenseFile=..\LICENSE.txt
 ; 如果您希望安装程序在安装前显示 "准备安装" 对话框，请删除以下行
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputDir=D:\project\Genie-Studio-App\installer_output
+OutputDir=..\installer_output
 OutputBaseFilename=genie_review_assistant_setup_{#MyAppVersion}
-SetupIconFile=D:\project\Genie-Studio-App\windows\runner\resources\app_icon.ico
+SetupIconFile=..\windows\runner\resources\app_icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 ; 安装程序外观
 WizardSizePercent=120
-WizardImageFile=D:\project\Genie-Studio-App\installer_assets\wizard_image.bmp
-WizardSmallImageFile=D:\project\Genie-Studio-App\installer_assets\wizard_small.bmp
+WizardImageFile=assets\wizard_image.bmp
+WizardSmallImageFile=assets\wizard_small.bmp
 ; 安装信息
 VersionInfoVersion={#MyAppVersion}.0
 VersionInfoCompany={#MyAppPublisher}
@@ -67,23 +67,23 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 
 [Files]
 ; 主程序文件
-Source: "D:\project\Genie-Studio-App\build\windows\x64\runner\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\windows\x64\runner\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; Flutter 运行时
-Source: "D:\project\Genie-Studio-App\build\windows\x64\runner\Release\flutter_windows.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\windows\x64\runner\Release\flutter_windows.dll"; DestDir: "{app}"; Flags: ignoreversion
 ; 数据目录
-Source: "D:\project\Genie-Studio-App\build\windows\x64\runner\Release\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\build\windows\x64\runner\Release\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; WebView2 加载器
-Source: "D:\project\Genie-Studio-App\build\windows\x64\runner\Release\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\windows\x64\runner\Release\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion
 ; WebView 插件
-Source: "D:\project\Genie-Studio-App\build\windows\x64\runner\Release\webview_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\windows\x64\runner\Release\webview_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 ; 窗口管理插件
-Source: "D:\project\Genie-Studio-App\build\windows\x64\runner\Release\window_manager_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\windows\x64\runner\Release\window_manager_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 ; 屏幕获取插件
-Source: "D:\project\Genie-Studio-App\build\windows\x64\runner\Release\screen_retriever_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\windows\x64\runner\Release\screen_retriever_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 ; URL 启动器插件
-Source: "D:\project\Genie-Studio-App\build\windows\x64\runner\Release\url_launcher_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\windows\x64\runner\Release\url_launcher_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 ; 许可证文件
-Source: "D:\project\Genie-Studio-App\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
 ; 注意: 不要在任何共享系统文件上使用 "Flags: ignoreversion"
 
 [Registry]

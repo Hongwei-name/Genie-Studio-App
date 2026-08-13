@@ -8,6 +8,7 @@ echo =====================================
 echo.
 
 cd /d "%~dp0"
+cd ..
 
 :: ?? Inno Setup ????
 set "ISCC="
@@ -52,14 +53,13 @@ echo.
 :: ?? 2: ??????
 echo [2/3] ??????...
 if not exist "installer_output" mkdir installer_output
-if not exist "installer_assets" mkdir installer_assets
 echo ? ??????
 echo.
 
 :: ?? 3: ??????
 echo [3/3] ??????...
 echo.
-"%ISCC%" installer.iss
+"%ISCC%" installer\installer.iss
 
 if %errorlevel% neq 0 (
     echo.
