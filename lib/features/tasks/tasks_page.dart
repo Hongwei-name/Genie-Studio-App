@@ -53,7 +53,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
         children: [
           _ToolbarButton(
             icon: isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-            label: isPaused ? '继续抓取' : '开启抓取',
+            label: isPaused ? '继续抓取' : '暂停抓取',
             color: AppTheme.textPrimary,
             onPressed: () async {
               await ref.read(refreshProvider.notifier).togglePause();
@@ -134,7 +134,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
           ),
           const _HeaderCell(width: 88, label: '状态'),
           const Expanded(child: _HeaderCell(label: '描述', icon: Icons.search)),
-          const _HeaderCell(width: 120, label: '操作'),
+          const _HeaderCell(width: 160, label: '操作'),
         ],
       ),
     );
@@ -304,21 +304,16 @@ class _TasksPageState extends ConsumerState<TasksPage> {
       );
     }
 
-    return Stack(
-      children: [
-        ListView.separated(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: rows.length,
-          separatorBuilder: (_, _) => const Divider(
-            height: 1,
-            indent: 20,
-            endIndent: 20,
-            color: AppTheme.separatorLight,
-          ),
-          itemBuilder: (context, index) => _buildEpRow(rows[index], state),
-        ),
-        // 移除右上角的loading
-      ],
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: rows.length,
+      separatorBuilder: (_, _) => const Divider(
+        height: 1,
+        indent: 20,
+        endIndent: 20,
+        color: AppTheme.separatorLight,
+      ),
+      itemBuilder: (context, index) => _buildEpRow(rows[index], state),
     );
   }
 
@@ -359,6 +354,11 @@ class _TasksPageState extends ConsumerState<TasksPage> {
         icon: Icons.open_in_new,
         tooltip: '打开 EP',
         onPressed: () => _onEpTap(row.task.id, row.jobId, ep.id, epKey),
+      ),
+      trailingAction: _RowAction(
+        icon: Icons.play_arrow_rounded,
+        tooltip: '预览首帧',
+        onPressed: () => _openPreview(row.task.id, row.jobId, state),
       ),
     );
   }
@@ -457,6 +457,23 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     await ref.read(tasksProvider.notifier).markEpOpened(epKey);
     ref.read(epOpenRequestProvider.notifier).request(url);
   }
+
+  void _openPreview(int taskId, int jobId, TasksState state) async {
+    final previewKey = '${taskId}_$jobId';
+    final url = state.previewUrls[previewKey];
+    if (url != null) {
+      ref.read(epOpenRequestProvider.notifier).request(url);
+      return;
+    }
+    await ref.read(tasksProvider.notifier).fetchPreviewUrl(taskId, jobId);
+    if (!mounted) return;
+    final newUrl = ref.read(tasksProvider).previewUrls[previewKey];
+    if (newUrl != null) {
+      ref.read(epOpenRequestProvider.notifier).request(newUrl);
+    } else {
+      ref.read(logProvider.notifier).warn('获取预览链接失败');
+    }
+  }
 }
 
 class _TaskPicker extends StatelessWidget {
@@ -487,7 +504,7 @@ class _TaskPicker extends StatelessWidget {
           hint: const Padding(
             padding: EdgeInsets.only(left: 12),
             child: Text(
-              '图片',
+              '选择任务',
               style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
             ),
           ),
@@ -710,6 +727,7 @@ class _ResourceRow extends StatelessWidget {
     required this.statusColor,
     required this.action,
     this.onTap,
+    this.trailingAction,
   });
 
   final String domain;
@@ -718,6 +736,7 @@ class _ResourceRow extends StatelessWidget {
   final Color statusColor;
   final _RowAction action;
   final VoidCallback? onTap;
+  final _RowAction? trailingAction;
 
   @override
   Widget build(BuildContext context) {
@@ -741,10 +760,14 @@ class _ResourceRow extends StatelessWidget {
             ),
             Expanded(child: _DescriptionCell(description)),
             SizedBox(
-              width: 120,
+              width: 160,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (trailingAction != null) ...[
+                    _SmallRowButton(action: trailingAction!),
+                    const SizedBox(width: 8),
+                  ],
                   _SmallRowButton(action: action),
                 ],
               ),

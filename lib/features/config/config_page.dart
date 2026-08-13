@@ -426,6 +426,9 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
           contentPadding: EdgeInsets.zero,
           content: Container(
             width: 600,
@@ -907,6 +910,9 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        ),
         content: Text(msg),
         actions: [
           TextButton(
@@ -922,6 +928,9 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        ),
         title: const Text('确认'),
         content: Text(message),
         actions: [
@@ -939,4 +948,5 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     );
   }
 }
+
 
