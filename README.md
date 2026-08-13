@@ -108,3 +108,4 @@ MIT License - 详见 [LICENSE.txt](LICENSE.txt)
 
 - [GitHub 仓库](https://github.com/Hongwei-name/Genie-Studio-App)
 - [问题反馈](https://github.com/Hongwei-name/Genie-Studio-App/issues)
+

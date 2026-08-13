@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_windows/webview_windows.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
@@ -9,8 +11,8 @@ import '../../providers/log_provider.dart';
 import '../../providers/refresh_provider.dart';
 import '../../providers/stats_provider.dart';
 
-/// 配置页
-/// 包含 Token（Cookie）配置、刷新、自动打开、并发数、EP打开方式等
+/// 配置页面
+/// 包含 Token（Cookie）配置、刷新、自动打开、并发数、EP 打开方式等
 class ConfigPage extends ConsumerStatefulWidget {
   const ConfigPage({super.key});
 
@@ -27,6 +29,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   late bool _autoOpen;
   late bool _showAllJobs;
   bool _obscureCookie = true;
+  bool _isLoggingIn = false;
 
   @override
   void initState() {
@@ -57,125 +60,170 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 22, 24, 28),
       children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('系统设置', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
-                      SizedBox(height: 5),
-                      Text('管理连接、自动化行为与本地数据维护。', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                    ],
+        // 标题栏
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '系统设置',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
-                ),
-                _statusBadge(settings.cookie.isNotEmpty, settings.isPaused),
-              ],
-            ),
-            const SizedBox(height: 22),
-            _buildSection(
-              title: '认证',
-              children: [
-                _buildCookieRow(),
-              ],
-            ),
-            _buildSection(
-              title: '刷新设置',
-              children: [
-                _buildRefreshRow(),
-                _buildSwitchRow(
-                  label: '暂停刷新',
-                  desc: '暂停任务列表自动刷新',
-                  value: ref.watch(settingsProvider).isPaused,
-                  onChanged: (v) => _togglePause(v),
-                ),
-              ],
-            ),
-            _buildSection(
-              title: '并发与性能',
-              children: [
-                _buildConcurrencyRow(),
-              ],
-            ),
-            _buildSection(
-              title: '自动打开',
-              children: [
-                _buildSwitchRow(
-                  label: '自动打开新EP',
-                  desc: '仅自动打开未打开、非验收失败的普通EP',
-                  value: _autoOpen,
-                  onChanged: (v) => setState(() => _autoOpen = v),
-                ),
-                _buildEpOpenModeRow(),
-              ],
-            ),
-            _buildSection(
-              title: '验收失败筛选',
-              children: [
-                _buildScreenerRow(),
-                _buildSwitchRow(
-                  label: '显示所有Job',
-                  desc: '关闭时只显示有待审核EP的Job',
-                  value: _showAllJobs,
-                  onChanged: (v) => setState(() => _showAllJobs = v),
-                ),
-              ],
-            ),
-            _buildSection(
-              title: '统计与日志',
-              children: [
-                _buildActionRow(
-                  label: '重置今日统计',
-                  desc: '重置今日完成数和视频时长',
-                  buttonText: '重置',
-                  isDestructive: true,
-                  onTap: _resetStats,
-                ),
-                _buildActionRow(
-                  label: '清空日志',
-                  desc: '清空所有日志记录',
-                  buttonText: '清空',
-                  onTap: _clearLogs,
-                ),
-                _buildActionRow(
-                  label: '重新扫描验收失败EP',
-                  desc: '清空缓存并重新扫描所有任务',
-                  buttonText: '扫描',
-                  isDestructive: true,
-                  onTap: _rescanFailEps,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: FilledButton(
-                onPressed: _save,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  SizedBox(height: 5),
+                  Text(
+                    '管理连接、自动化行为与本地数据维护',
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                   ),
-                ),
-                child: const Text('保存配置'),
+                ],
               ),
             ),
+            _statusBadge(settings.cookie.isNotEmpty, settings.isPaused),
           ],
+        ),
+        const SizedBox(height: 22),
+
+        // 认证部分
+        _buildSection(
+          title: '认证',
+          children: [
+            _buildCookieRow(),
+            if (settings.cookie.isEmpty) _buildLoginButton(),
+          ],
+        ),
+
+        // 刷新设置
+        _buildSection(
+          title: '刷新设置',
+          children: [
+            _buildRefreshRow(),
+            _buildSwitchRow(
+              label: '暂停刷新',
+              desc: '暂停任务列表自动刷新',
+              value: ref.watch(settingsProvider).isPaused,
+              onChanged: (v) => _togglePause(v),
+            ),
+          ],
+        ),
+
+        // 并发与性能
+        _buildSection(
+          title: '并发与性能',
+          children: [
+            _buildConcurrencyRow(),
+          ],
+        ),
+
+        // 自动打开
+        _buildSection(
+          title: '自动打开',
+          children: [
+            _buildSwitchRow(
+              label: '自动打开新EP',
+              desc: '仅自动打开未打开、非验收失败的普通EP',
+              value: _autoOpen,
+              onChanged: (v) => setState(() => _autoOpen = v),
+            ),
+            _buildEpOpenModeRow(),
+          ],
+        ),
+
+        // 验收失败筛选
+        _buildSection(
+          title: '验收失败筛选',
+          children: [
+            _buildScreenerRow(),
+            _buildSwitchRow(
+              label: '显示所有Job',
+              desc: '关闭时只显示有待审核EP的Job',
+              value: _showAllJobs,
+              onChanged: (v) => setState(() => _showAllJobs = v),
+            ),
+          ],
+        ),
+
+        // 统计与日志
+        _buildSection(
+          title: '统计与日志',
+          children: [
+            _buildActionRow(
+              label: '重置今日统计',
+              desc: '重置今日完成数和视频时长',
+              buttonText: '重置',
+              isDestructive: true,
+              onTap: _resetStats,
+            ),
+            _buildActionRow(
+              label: '清空日志',
+              desc: '清空所有日志记录',
+              buttonText: '清空',
+              onTap: _clearLogs,
+            ),
+            _buildActionRow(
+              label: '重新扫描验收失败EP',
+              desc: '清空缓存并重新扫描所有任务',
+              buttonText: '扫描',
+              isDestructive: true,
+              onTap: _rescanFailEps,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // 保存按钮
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: FilledButton(
+            onPressed: _save,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+            ),
+            child: const Text('保存配置'),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _statusBadge(bool authenticated, bool paused) {
     final color = authenticated ? AppTheme.success : AppTheme.warning;
-    final label = authenticated ? (paused ? '已认证 · 已暂停' : '已认证 · 运行中') : '等待 Cookie';
+    final label = authenticated
+        ? (paused ? '已认证 · 已暂停' : '已认证 · 运行中')
+        : '等待 Cookie';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      decoration: BoxDecoration(color: color.withValues(alpha: .1), borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(authenticated ? Icons.check_circle_outline : Icons.info_outline, size: 16, color: color),
-        const SizedBox(width: 7),
-        Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
-      ]),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .1),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            authenticated ? Icons.check_circle_outline : Icons.info_outline,
+            size: 16,
+            color: color,
+          ),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -242,55 +290,37 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
               ),
               const Spacer(),
               GestureDetector(
-                onTap: () =>
-                    setState(() => _obscureCookie = !_obscureCookie),
+                onTap: () => setState(() => _obscureCookie = !_obscureCookie),
                 child: Icon(
-                  _obscureCookie
-                      ? Icons.visibility_off
-                      : Icons.visibility,
-                  size: 16,
+                  _obscureCookie ? Icons.visibility_off : Icons.visibility,
+                  size: 20,
                   color: AppTheme.textTertiary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          const Text(
-            '从浏览器开发者工具复制完整 Cookie 字符串。用于桌面端直接调用 API，无需浏览器登录。',
-            style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-          ),
           const SizedBox(height: 8),
           TextField(
             controller: _cookieCtrl,
             obscureText: _obscureCookie,
-            maxLines: _obscureCookie ? 1 : 3,
-            minLines: 1,
-            style: const TextStyle(
-              fontSize: 12,
-              fontFamily: 'monospace',
-              color: AppTheme.textPrimary,
-            ),
+            maxLines: 2,
+            style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
             decoration: InputDecoration(
-              hintText: '例如：session=xxx; token=yyy',
-              hintStyle:
-                  const TextStyle(fontSize: 12, color: AppTheme.textTertiary),
-              filled: true,
-              fillColor: AppTheme.windowBackground,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              isDense: true,
+              hintText: '粘贴 Cookie 或点击下方按钮登录获取',
+              hintStyle: TextStyle(
+                color: AppTheme.textTertiary,
+                fontSize: 13,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                borderSide: const BorderSide(color: AppTheme.separator),
+                borderSide: BorderSide.none,
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                borderSide: const BorderSide(color: AppTheme.separator),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                borderSide: const BorderSide(color: AppTheme.primary),
-              ),
+              filled: true,
+              fillColor: AppTheme.surfaceHover,
             ),
           ),
         ],
@@ -298,63 +328,197 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     );
   }
 
+  /// 登录按钮（当 Cookie 为空时显示）
+  Widget _buildLoginButton() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 40,
+            child: OutlinedButton.icon(
+              onPressed: _isLoggingIn ? null : _openLoginWebView,
+              icon: _isLoggingIn
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.login, size: 18),
+              label: Text(_isLoggingIn ? '登录中...' : '点击登录获取 Cookie'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primary,
+                side: BorderSide(color: AppTheme.primary.withValues(alpha: 0.3)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '点击上方按钮打开登录页面，登录完成后将自动获取 Cookie',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppTheme.textTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 打开登录 WebView
+  Future<void> _openLoginWebView() async {
+    setState(() => _isLoggingIn = true);
+    
+    try {
+      final controller = WebviewController();
+      await controller.initialize();
+      
+      // 监听 URL 变化，检测登录完成
+      controller.url.listen((url) {
+        if (url != null && !url.contains('/login')) {
+          // 登录完成，提取 Cookie
+          _extractCookieFromWebView(controller);
+        }
+      });
+
+      // 打开登录页面
+      await controller.loadUrl('https://tgs-geniestudio.agibot.com/login/gxcy');
+
+      if (!mounted) return;
+
+      // 显示 WebView 对话框
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          contentPadding: EdgeInsets.zero,
+          content: Container(
+            width: 600,
+            height: 500,
+            child: Column(
+              children: [
+                // 标题栏
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    border: Border(
+                      bottom: BorderSide(color: AppTheme.separator),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Text(
+                        '登录',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          controller.dispose();
+                          Navigator.of(ctx).pop();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                // WebView
+                Expanded(
+                  child: Webview(controller),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      controller.dispose();
+    } catch (e) {
+      ref.read(logProvider.notifier).error('登录失败: $e');
+      _showToast('登录失败: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoggingIn = false);
+      }
+    }
+  }
+
+  /// 从 WebView 提取 Cookie
+  Future<void> _extractCookieFromWebView(WebviewController controller) async {
+    try {
+      // 执行 JavaScript 获取 Cookie
+      final result = await controller.executeScript('document.cookie');
+      if (result != null && result.toString().isNotEmpty) {
+        final cookie = result.toString();
+        setState(() {
+          _cookieCtrl.text = cookie;
+        });
+        
+        // 自动保存
+        await _save();
+        
+        if (mounted) {
+          Navigator.of(context).pop(); // 关闭 WebView
+          _showToast('Cookie 获取成功！');
+          ref.read(logProvider.notifier).success('登录成功，Cookie 已获取');
+        }
+      }
+    } catch (e) {
+      ref.read(logProvider.notifier).error('提取 Cookie 失败: $e');
+    }
+  }
+
   Widget _buildRefreshRow() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  '刷新频率',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  '任务列表自动刷新间隔（秒，0=暂停）',
-                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-                ),
-              ],
+          const Text(
+            '刷新频率',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textPrimary,
             ),
           ),
+          const Spacer(),
           SizedBox(
-            width: 70,
+            width: 80,
+            height: 32,
             child: TextField(
               controller: _refreshCtrl,
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                filled: true,
-                fillColor: AppTheme.windowBackground,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 6,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                  borderSide: const BorderSide(color: AppTheme.separator),
+                  borderSide: BorderSide.none,
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                  borderSide: const BorderSide(color: AppTheme.separator),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                  borderSide: const BorderSide(color: AppTheme.primary),
-                ),
+                filled: true,
+                fillColor: AppTheme.surfaceHover,
               ),
             ),
           ),
-          const SizedBox(width: 6),
-          const Text(
+          const SizedBox(width: 8),
+          Text(
             '秒',
-            style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+            style: TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSecondary,
+            ),
           ),
         ],
       ),
@@ -364,10 +528,10 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   Widget _buildConcurrencyRow() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 '并发数',
@@ -377,50 +541,47 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                   color: AppTheme.textPrimary,
                 ),
               ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                ),
-                child: Text(
-                  '$_concurrency',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primary,
-                  ),
+              const SizedBox(height: 2),
+              Text(
+                '同时打开的 EP 数量',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textTertiary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          const Text(
-            '控制任务/Job/EP 并发请求数（1-64）。桌面端核心提升项。',
-            style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-          ),
-          const SizedBox(height: 8),
+          const Spacer(),
           Row(
             children: [
-              const Text(
-                '1',
-                style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+              _buildCounterButton(
+                icon: Icons.remove,
+                onTap: () {
+                  if (_concurrency > 1) {
+                    setState(() => _concurrency--);
+                  }
+                },
               ),
-              Expanded(
-                child: Slider(
-                  value: _concurrency.toDouble(),
-                  min: AppConfig.minConcurrency.toDouble(),
-                  max: AppConfig.maxConcurrency.toDouble(),
-                  divisions: AppConfig.maxConcurrency - 1,
-                  activeColor: AppTheme.primary,
-                  onChanged: (v) => setState(() => _concurrency = v.toInt()),
+              Container(
+                width: 48,
+                height: 32,
+                alignment: Alignment.center,
+                child: Text(
+                  '$_concurrency',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
               ),
-              const Text(
-                '64',
-                style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+              _buildCounterButton(
+                icon: Icons.add,
+                onTap: () {
+                  if (_concurrency < 10) {
+                    setState(() => _concurrency++);
+                  }
+                },
               ),
             ],
           ),
@@ -429,61 +590,21 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     );
   }
 
-  Widget _buildScreenerRow() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  '初筛人',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  '只显示该初筛人处理的验收失败EP（用户名，如 zhoujun）',
-                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 140,
-            child: TextField(
-              controller: _screenerCtrl,
-              style: const TextStyle(fontSize: 13),
-              decoration: InputDecoration(
-                hintText: '留空=全部',
-                hintStyle:
-                    const TextStyle(fontSize: 13, color: AppTheme.textTertiary),
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                filled: true,
-                fillColor: AppTheme.windowBackground,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                  borderSide: const BorderSide(color: AppTheme.separator),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                  borderSide: const BorderSide(color: AppTheme.separator),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                  borderSide: const BorderSide(color: AppTheme.primary),
-                ),
-              ),
-            ),
-          ),
-        ],
+  Widget _buildCounterButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceHover,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        ),
+        child: Icon(icon, size: 18, color: AppTheme.textSecondary),
       ),
     );
   }
@@ -493,37 +614,85 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'EP 打开方式',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  '点击 EP 按钮后，用系统浏览器或应用内 WebView 打开审核页',
-                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-                ),
-              ],
+          const Text(
+            'EP 打开方式',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textPrimary,
             ),
           ),
+          const Spacer(),
           SegmentedButton<EpOpenMode>(
             segments: const [
               ButtonSegment(
-                  value: EpOpenMode.browser, label: Text('浏览器')),
+                value: EpOpenMode.browser,
+                label: Text('浏览器', style: TextStyle(fontSize: 12)),
+              ),
               ButtonSegment(
-                  value: EpOpenMode.webview, label: Text('WebView')),
+                value: EpOpenMode.webview,
+                label: Text('WebView', style: TextStyle(fontSize: 12)),
+              ),
             ],
             selected: {_epOpenMode},
-            onSelectionChanged: (v) {
-              if (v.isNotEmpty) setState(() => _epOpenMode = v.first);
-            },
+            onSelectionChanged: (v) => setState(() => _epOpenMode = v.first),
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScreenerRow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                '初筛人',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '（可选）',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textTertiary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _screenerCtrl,
+            style: const TextStyle(fontSize: 13),
+            decoration: InputDecoration(
+              hintText: '输入初筛人姓名',
+              hintStyle: TextStyle(
+                color: AppTheme.textTertiary,
+                fontSize: 13,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: AppTheme.surfaceHover,
+            ),
           ),
         ],
       ),
@@ -556,15 +725,17 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                 Text(
                   desc,
                   style: const TextStyle(
-                      fontSize: 11, color: AppTheme.textTertiary),
+                    fontSize: 11,
+                    color: AppTheme.textTertiary,
+                  ),
                 ),
               ],
             ),
           ),
           Switch(
             value: value,
-            activeTrackColor: AppTheme.primary,
             onChanged: onChanged,
+            activeColor: AppTheme.primary,
           ),
         ],
       ),
@@ -598,7 +769,9 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                 Text(
                   desc,
                   style: const TextStyle(
-                      fontSize: 11, color: AppTheme.textTertiary),
+                    fontSize: 11,
+                    color: AppTheme.textTertiary,
+                  ),
                 ),
               ],
             ),
@@ -606,13 +779,11 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
           TextButton(
             onPressed: onTap,
             style: TextButton.styleFrom(
-              foregroundColor:
-                  isDestructive ? AppTheme.danger : AppTheme.primary,
+              foregroundColor: isDestructive ? AppTheme.danger : AppTheme.primary,
               backgroundColor: isDestructive
                   ? AppTheme.danger.withValues(alpha: 0.1)
                   : AppTheme.surfaceHover,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               shape: RoundedRectangleBorder(

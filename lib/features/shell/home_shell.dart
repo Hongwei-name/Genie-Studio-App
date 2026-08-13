@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
@@ -142,19 +142,26 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
         }
       },
       child: Container(
-        width: 140,
+        width: 160,
         color: AppTheme.sidebarBackground,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // 顶部：交通灯 + Logo
             Padding(
-              padding: const EdgeInsets.only(left: 20, top: 14, bottom: 22),
-              child: _TrafficLights(isMaximized: _isMaximized),
+              padding: const EdgeInsets.only(left: 16, top: 12, bottom: 16),
+              child: Row(
+                children: [
+                  _TrafficLights(isMaximized: _isMaximized),
+                  const Spacer(),
+                ],
+              ),
             ),
+            // Logo
             Center(
               child: Container(
-                width: 46,
-                height: 46,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFFFFD35A), Color(0xFFFFA400)],
@@ -177,47 +184,74 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
                 ),
               ),
             ),
+            const SizedBox(height: 8),
+            // 应用名称
+            Center(
+              child: Text(
+                'zero_K-Genie',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ),
             const SizedBox(height: 20),
+            // 主导航项
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: [
-                  _buildPrimaryNavItem(
-                    icon: Icons.cloud_queue,
-                    selectedIcon: Icons.cloud,
-                    label: '获取资源',
+                  _buildNavItem(
+                    icon: Icons.task_alt_outlined,
+                    selectedIcon: Icons.task_alt,
+                    label: '任务列表',
                     badge: tasks.totalPendingCount,
                     badgeColor: AppTheme.success,
                     index: 0,
                   ),
-                  const SizedBox(height: 6),
-                  _buildPrimaryNavItem(
+                  const SizedBox(height: 4),
+                  _buildNavItem(
+                    icon: Icons.error_outline,
+                    selectedIcon: Icons.error,
+                    label: '验收失败',
+                    badge: failEps.failedEps.length,
+                    badgeColor: AppTheme.danger,
+                    index: 1,
+                  ),
+                  const SizedBox(height: 4),
+                  _buildNavItem(
+                    icon: Icons.receipt_long_outlined,
+                    selectedIcon: Icons.receipt_long,
+                    label: '日志',
+                    badge: logs.entries.length,
+                    badgeColor: AppTheme.textTertiary,
+                    index: 2,
+                  ),
+                  const SizedBox(height: 4),
+                  _buildNavItem(
+                    icon: Icons.pie_chart_outline,
+                    selectedIcon: Icons.pie_chart,
+                    label: '统计',
+                    index: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    height: 0.5,
+                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                    color: AppTheme.separator,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildNavItem(
                     icon: Icons.settings_outlined,
                     selectedIcon: Icons.settings,
                     label: '系统设置',
                     index: 4,
                   ),
-                  const SizedBox(height: 16),
-                  _buildSecondaryLink(
-                    icon: Icons.error_outline,
-                    label: '验收失败',
-                    badge: failEps.failedEps.length,
-                    index: 1,
-                  ),
-                  _buildSecondaryLink(
-                    icon: Icons.receipt_long_outlined,
-                    label: '日志',
-                    badge: logs.entries.length,
-                    index: 2,
-                  ),
-                  _buildSecondaryLink(
-                    icon: Icons.pie_chart_outline,
-                    label: '统计',
-                    index: 3,
-                  ),
                 ],
               ),
             ),
+            // 底部操作
             _buildSidebarFooter(settings),
           ],
         ),
@@ -225,7 +259,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
     );
   }
 
-  Widget _buildPrimaryNavItem({
+  Widget _buildNavItem({
     required IconData icon,
     required IconData selectedIcon,
     required String label,
@@ -234,85 +268,39 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
     Color? badgeColor,
   }) {
     final selected = index == _selectedIndex;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-          onTap: () => setState(() => _selectedIndex = index),
-          child: Container(
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: selected ? AppTheme.sidebarSelection : Colors.transparent,
-              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  selected ? selectedIcon : icon,
-                  size: 18,
-                  color: selected ? AppTheme.textOnSelection : AppTheme.success,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: selected
-                          ? AppTheme.textOnSelection
-                          : AppTheme.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (badge > 0) _buildNavBadge(badge, badgeColor, selected),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSecondaryLink({
-    required IconData icon,
-    required String label,
-    required int index,
-    int badge = 0,
-  }) {
-    final selected = index == _selectedIndex;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(AppTheme.radiusSm),
         onTap: () => setState(() => _selectedIndex = index),
         child: Container(
-          height: 34,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: selected ? AppTheme.sidebarSelection : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          ),
           child: Row(
             children: [
               Icon(
-                icon,
-                size: 16,
-                color: selected ? AppTheme.primary : AppTheme.textSecondary,
+                selected ? selectedIcon : icon,
+                size: 20,
+                color: selected ? AppTheme.textOnSelection : AppTheme.textSecondary,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   label,
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: selected ? AppTheme.primary : AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    color: selected ? AppTheme.textOnSelection : AppTheme.textPrimary,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (badge > 0) _buildNavBadge(badge, AppTheme.textTertiary, false),
+              if (badge > 0) _buildBadge(badge, badgeColor, selected),
             ],
           ),
         ),
@@ -320,9 +308,9 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
     );
   }
 
-  Widget _buildNavBadge(int count, Color? color, bool selected) {
+  Widget _buildBadge(int count, Color? color, bool selected) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: selected
             ? Colors.white.withValues(alpha: 0.25)
@@ -342,54 +330,66 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
 
   Widget _buildSidebarFooter(AppSettings settings) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 10, 8, 24),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildFooterAction(Icons.code, 'github', () {
-            launchUrl(
-              Uri.parse('https://github.com'),
-              mode: LaunchMode.externalApplication,
-            );
-          }),
-          _buildFooterAction(Icons.translate, 'English', () {
-            ref.read(logProvider.notifier).info('当前版本仅提供中文界面');
-          }),
-          _buildFooterAction(Icons.dark_mode_outlined, '主题更换', () {
-            ref.read(logProvider.notifier).info('当前使用 macOS 浅色主题，主题切换将在后续版本提供');
-          }),
-          _buildFooterAction(Icons.help_outline, '关于我们', () {
-            showAboutDialog(
-              context: context,
-              applicationName: '智元标注审核助手',
-              applicationVersion: '1.0.0',
-              children: [
-                Text('并发 ${settings.concurrency} · ${settings.autoOpen ? '自动打开已开启' : '自动打开已关闭'}'),
-              ],
-            );
-          }),
+          Container(
+            height: 0.5,
+            color: AppTheme.separator,
+          ),
+          const SizedBox(height: 8),
+          _buildFooterAction(
+            icon: Icons.code,
+            label: 'GitHub',
+            onTap: () {
+              launchUrl(
+                Uri.parse('https://github.com/Hongwei-name/Genie-Studio-App'),
+                mode: LaunchMode.externalApplication,
+              );
+            },
+          ),
+          _buildFooterAction(
+            icon: Icons.info_outline,
+            label: '关于',
+            onTap: () {
+              showAboutDialog(
+                context: context,
+                applicationName: 'zero_K-Genie',
+                applicationVersion: '1.0.0',
+                children: [
+                  Text('作者: zero_K'),
+                  Text('并发数: ${settings.concurrency}'),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildFooterAction(IconData icon, String label, VoidCallback onTap) {
+  Widget _buildFooterAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       borderRadius: BorderRadius.circular(AppTheme.radiusSm),
       onTap: onTap,
       child: Container(
         height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: AppTheme.textPrimary),
+            Icon(icon, size: 18, color: AppTheme.textSecondary),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.textPrimary,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
