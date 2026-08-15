@@ -1,4 +1,4 @@
-﻿; ============================================================
+; ============================================================
 ; zero_K-Genie - Inno Setup 安装程序脚本
 ; ============================================================
 
@@ -53,7 +53,7 @@ Source: "..\build\windows\x64\runner\Release\webview_windows_plugin.dll"; DestDi
 Source: "..\build\windows\x64\runner\Release\window_manager_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\windows\x64\runner\Release\screen_retriever_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\windows\x64\runner\Release\url_launcher_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -65,3 +65,4 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\data"
+

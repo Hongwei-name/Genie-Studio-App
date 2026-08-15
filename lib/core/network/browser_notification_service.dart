@@ -4,8 +4,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/log_provider.dart';
-import '../providers/stats_provider.dart';
+import '../../providers/log_provider.dart';
+import '../../providers/stats_provider.dart';
 
 /// 浏览器通知服务
 /// 用于接收油猴脚本发送的标注成功通知
@@ -152,4 +152,5 @@ final browserNotificationServiceProvider = Provider<BrowserNotificationService>(
   
   return service;
 });
+
 
