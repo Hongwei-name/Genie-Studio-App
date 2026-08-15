@@ -167,7 +167,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('zero_K-Genie'),
-        content: const Text('zero_K-Genie\nv3.0.1\n\n让审核工作回到清晰、可控的节奏。'),
+        content: const Text('zero_K-Genie\nv3.0.2\n\n让审核工作回到清晰、可控的节奏。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),

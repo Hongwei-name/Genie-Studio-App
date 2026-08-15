@@ -84,7 +84,7 @@ Write-Host "[3/3] 完成!" -ForegroundColor Green
 Write-Host ""
 
 # 检查输出文件
-$setupFile = "$outputDir\zero_K-Genie_Setup_3.0.1.exe"
+$setupFile = "$outputDir\zero_K-Genie_Setup_3.0.2.exe"
 if (Test-Path $setupFile) {
     $fileSize = [math]::Round((Get-Item $setupFile).Length / 1MB, 2)
     
