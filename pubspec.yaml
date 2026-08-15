@@ -1,7 +1,7 @@
 ﻿name: zero_k_genie
 description: "zero_K-Genie 智元标注审核助手桌面端 - 解决并发能力不足及功能弱的问题"
 publish_to: 'none'
-version: 3.0.0+1
+version: 3.0.1+1
 
 environment:
   sdk: ^3.12.2
@@ -37,7 +37,7 @@ msix_config:
   publisher_display_name: zero_K
   identity_name: com.zerok.genie
   publisher: CN=zero_K
-  msix_version: 3.0.0.0
+  msix_version: 3.0.1.0
   logo_path: windows/runner/resources/app_icon.ico
   capabilities: internetClient
   languages: zh-CN

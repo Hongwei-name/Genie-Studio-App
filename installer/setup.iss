@@ -4,11 +4,13 @@
 
 [Setup]
 AppName=zero_K-Genie
-AppVersion=3.0.0
+AppVersion=3.0.1
 AppPublisher=zero_K
-DefaultDirName={autopf}\GenieStudio
+DefaultDirName={localappdata}\Programs\GenieStudio
+UsePreviousAppDir=yes
+DisableDirPage=no
 DefaultGroupName=zero_K-Genie
-OutputBaseFilename=GenieStudio_Setup_v3.0.0
+OutputBaseFilename=GenieStudio_Setup_v3.0.1
 OutputDir=..\dist
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -28,6 +30,7 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 
 [Files]
 Source: "..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "..\userscripts\zero-K-Genie.user.js"; DestDir: "{app}\userscripts"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\zero_K-Genie"; Filename: "{app}\zero_k_genie.exe"
