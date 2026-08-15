@@ -1,10 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:webview_windows/webview_windows.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'core/network/api_client.dart';
 import 'data/storage/config_storage.dart';
 import 'providers/app_providers.dart';
+import 'providers/local_http_server_provider.dart';
 import 'app.dart';
 
 Future<void> main() async {
@@ -12,6 +14,17 @@ Future<void> main() async {
 
   // 初始化窗口管理器
   await windowManager.ensureInitialized();
+
+  // Keep WebView2 on the GPU composition path for smoother video seeking.
+  try {
+    await WebviewController.initializeEnvironment(
+      additionalArguments:
+          '--enable-gpu --enable-gpu-compositing --enable-zero-copy '
+          '--disable-features=CalculateNativeWinOcclusion',
+    );
+  } catch (_) {
+    // The plugin can still use its default environment.
+  }
 
   // 隐藏原生 Windows 标题栏，使用自绘 macOS 风格标题栏
   windowManager.setAsFrameless();
@@ -32,9 +45,7 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
-      overrides: [
-        configStorageProvider.overrideWithValue(storage),
-      ],
+      overrides: [configStorageProvider.overrideWithValue(storage)],
       child: const ZeroKGenieApp(),
     ),
   );

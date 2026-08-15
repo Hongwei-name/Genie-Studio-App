@@ -37,7 +37,6 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
   StreamSubscription? _historySub;
   StreamSubscription? _urlSub;
   StreamSubscription? _msgSub;
-  Timer? _statsPollTimer;
 
   @override
   void initState() {
@@ -57,9 +56,7 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
       _msgSub = _controller.webMessage.listen(_onWebMessage);
 
       // 注入 Cookie 设置脚本 + 标注成功监听脚本（每次新文档加载前执行）
-      await _controller.addScriptToExecuteOnDocumentCreated(
-        _buildInitScript(),
-      );
+      await _controller.addScriptToExecuteOnDocumentCreated(_buildInitScript());
 
       if (mounted) setState(() => _initialized = true);
 
@@ -75,9 +72,6 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
         setState(() => _cookieReady = true);
         await _controller.loadUrl(widget.url);
       }
-
-      // 启动轮询检测"标注成功"（兜底机制，MutationObserver 可能漏消息）
-      _startStatsPoll();
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
     }
@@ -86,6 +80,25 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
   /// 构建注入脚本：设置 Cookie + MutationObserver 监听标注成功
   String _buildInitScript() {
     final sb = StringBuffer();
+
+    // The review page uses nested scroll containers. Restore wheel scrolling
+    // without changing its layout or adding per-frame Flutter work.
+    sb.write('''
+      (function(){
+        var style = document.createElement('style');
+        style.id = 'zero-k-webview-performance';
+        style.textContent = 'html,body{overscroll-behavior:auto!important;}\\n'
+          + 'html,body{scrollbar-gutter:stable;}\\n'
+          + 'video{backface-visibility:hidden;transform:translateZ(0);}' ;
+        (document.head || document.documentElement).appendChild(style);
+        document.documentElement.style.setProperty('overflow-y','auto','important');
+        var applyBodyScroll = function(){
+          if(document.body) document.body.style.setProperty('overflow-y','auto','important');
+        };
+        if(document.body) applyBodyScroll();
+        else document.addEventListener('DOMContentLoaded', applyBodyScroll, {once:true});
+      })();
+    ''');
 
     // 1. 注入 Cookie
     if (widget.cookie.isNotEmpty) {
@@ -103,7 +116,9 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
         }
         // 转义单引号
         final escaped = trimmed.replaceAll("'", "\\'");
-        sb.write("try{document.cookie='$escaped; path=/; domain=.agibot.com';}catch(e){}");
+        sb.write(
+          "try{document.cookie='$escaped; path=/; domain=.agibot.com';}catch(e){}",
+        );
       }
     }
 
@@ -112,22 +127,32 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
       (function(){
         if(window.__agibotMonitor) return;
         window.__agibotMonitor = true;
+        var scheduled = false;
         var observer = new MutationObserver(function(mutations){
-          for(var mi=0; mi<mutations.length; mi++){
-            var nodes = mutations[mi].addedNodes;
-            for(var ni=0; ni<nodes.length; ni++){
-              var node = nodes[ni];
-              if(node.nodeType !== 1) continue;
-              var msgEl = node.matches('.el-message,.el-message-box') ? node : node.querySelector('.el-message,.el-message-box');
-              if(!msgEl || msgEl.dataset.agibotMarked) continue;
-              if(msgEl.textContent.indexOf('标注成功') !== -1){
-                msgEl.dataset.agibotMarked = '1';
-                try{ window.chrome.webview.postMessage(JSON.stringify({type:'reviewSuccess'})); }catch(e){}
+          if(scheduled) return;
+          scheduled = true;
+          requestAnimationFrame(function(){
+            scheduled = false;
+            for(var mi=0; mi<mutations.length; mi++){
+              var nodes = mutations[mi].addedNodes;
+              for(var ni=0; ni<nodes.length; ni++){
+                var node = nodes[ni];
+                if(node.nodeType !== 1) continue;
+                var msgEl = node.matches('.el-message,.el-message-box') ? node : node.querySelector('.el-message,.el-message-box');
+                if(!msgEl || msgEl.dataset.agibotMarked) continue;
+                if(msgEl.textContent.indexOf('标注成功') !== -1){
+                  msgEl.dataset.agibotMarked = '1';
+                  try{ window.chrome.webview.postMessage(JSON.stringify({type:'reviewSuccess'})); }catch(e){}
+                }
               }
             }
-          }
+          });
         });
-        observer.observe(document.body || document.documentElement, {childList:true, subtree:true});
+        var observeMessageLayer = function(){
+          observer.observe(document.body || document.documentElement, {childList:true});
+        };
+        if(document.body) observeMessageLayer();
+        else document.addEventListener('DOMContentLoaded', observeMessageLayer, {once:true});
       })();
     ''');
 
@@ -143,33 +168,8 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     } catch (_) {}
   }
 
-  /// 轮询检测标注成功（兜底：MutationObserver 在某些 SPA 场景可能漏消息）
-  void _startStatsPoll() {
-    _statsPollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
-      if (!mounted || !_initialized) return;
-      try {
-        final result = await _controller.executeScript('''
-          (function(){
-            var msgs = document.querySelectorAll('.el-message,.el-message-box');
-            for(var i=0;i<msgs.length;i++){
-              if(!msgs[i].dataset.agibotPolled && msgs[i].textContent.indexOf('标注成功')!==-1){
-                msgs[i].dataset.agibotPolled = '1';
-                return 'success';
-              }
-            }
-            return '';
-          })()
-        ''');
-        if (result == 'success') {
-          ref.read(tasksProvider.notifier).onEpisodeReviewed(widget.episodeId);
-        }
-      } catch (_) {}
-    });
-  }
-
   @override
   void dispose() {
-    _statsPollTimer?.cancel();
     _historySub?.cancel();
     _urlSub?.cancel();
     _msgSub?.cancel();
@@ -219,8 +219,10 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             SizedBox(height: 12),
-            Text('正在加载并注入 Cookie...',
-                style: TextStyle(fontSize: 12, color: AppTheme.textTertiary)),
+            Text(
+              '正在加载并注入 Cookie...',
+              style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+            ),
           ],
         ),
       );
@@ -230,15 +232,15 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
 
   Widget _buildError() {
     final isRuntimeMissing =
-        _error?.contains('WebView2') == true || _error?.contains('runtime') == true;
+        _error?.contains('WebView2') == true ||
+        _error?.contains('runtime') == true;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.warning_amber,
-                size: 48, color: AppTheme.warning),
+            const Icon(Icons.warning_amber, size: 48, color: AppTheme.warning),
             const SizedBox(height: 12),
             Text(
               isRuntimeMissing ? 'WebView2 运行时未安装' : 'WebView 初始化失败',
@@ -253,7 +255,10 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
               isRuntimeMissing
                   ? '请安装 Microsoft Edge WebView2 Runtime\n或将"EP打开方式"切换为"浏览器"'
                   : _error ?? '',
-              style: const TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.textTertiary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
