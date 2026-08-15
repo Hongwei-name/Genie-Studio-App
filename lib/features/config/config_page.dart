@@ -334,7 +334,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
           TextField(
             controller: _cookieCtrl,
             obscureText: _obscureCookie,
-            maxLines: 2,
+              maxLines: _obscureCookie ? 1 : 2,
             style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
             decoration: InputDecoration(
               hintText: '粘贴 Cookie 或点击下方按钮登录获取',
@@ -618,7 +618,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
               _buildCounterButton(
                 icon: Icons.add,
                 onTap: () {
-                  if (_concurrency < 10) {
+                  if (_concurrency < AppConfig.maxConcurrency) {
                     setState(() => _concurrency++);
                   }
                 },
@@ -948,5 +948,9 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     );
   }
 }
+
+
+
+
 
 

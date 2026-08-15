@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -6,7 +6,7 @@ import '../../core/utils/format_utils.dart';
 import '../../providers/log_provider.dart';
 import '../../providers/stats_provider.dart';
 
-/// 统计页
+/// 统计页面（重新设计）
 class StatsPage extends ConsumerWidget {
   const StatsPage({super.key});
 
@@ -14,33 +14,75 @@ class StatsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(statsProvider);
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-      children: [
-            // 今日完成数
-            _buildStatCard(
-              icon: Icons.verified,
-              iconColor: AppTheme.success,
-              label: '今日完成',
-              value: '${stats.todayCount}',
-              unit: '条',
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题
+          const Row(
+            children: [
+              Icon(Icons.pie_chart_outline, size: 20, color: AppTheme.primary),
+              SizedBox(width: 8),
+              Text(
+                '今日统计',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _formatDate(DateTime.now()),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppTheme.textTertiary,
             ),
-            const SizedBox(height: 12),
-            // 视频时长
-            _buildStatCard(
-              icon: Icons.schedule,
-              iconColor: AppTheme.primary,
-              label: '视频时长',
-              value: FormatUtils.formatTime(stats.todayFrames),
-              unit: '',
-            ),
-            const SizedBox(height: 24),
-            // 重置按钮
-            TextButton(
+          ),
+          const SizedBox(height: 20),
+
+          // 统计卡片
+          Row(
+            children: [
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.verified_outlined,
+                  iconColor: AppTheme.success,
+                  label: '完成数',
+                  value: '${stats.todayCount}',
+                  unit: '条',
+                  bgColor: AppTheme.success.withValues(alpha: 0.06),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.schedule_outlined,
+                  iconColor: AppTheme.primary,
+                  label: '视频时长',
+                  value: FormatUtils.formatTime(stats.todayFrames),
+                  unit: '',
+                  bgColor: AppTheme.primary.withValues(alpha: 0.06),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // 重置按钮
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
               onPressed: () async {
                 final ok = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    ),
                     title: const Text('确认重置'),
                     content: const Text('将重置今日完成数和视频时长统计，不可撤销'),
                     actions: [
@@ -63,123 +105,99 @@ class StatsPage extends ConsumerWidget {
                   ref.read(logProvider.notifier).warn('今日统计已重置');
                 }
               },
-              style: TextButton.styleFrom(
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('重置今日统计'),
+              style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.danger,
-                backgroundColor: AppTheme.danger.withValues(alpha: 0.1),
+                side: const BorderSide(color: AppTheme.danger),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
               ),
-              child: const Text(
-                '重置今日统计',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
             ),
-            const SizedBox(height: 24),
-            // 说明
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.surface,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '统计说明',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    '• 完成数：今日成功审核的 EP 数量\n'
-                    '• 视频时长：今日审核 EP 的视频总时长（按 30fps 换算）\n'
-                    '• 统计按日重置，仅记录今日数据\n'
-                    '• 标注成功后自动累加，3 秒内重复不计',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textTertiary,
-                      height: 1.6,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildStatCard({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required String value,
-    required String unit,
-  }) {
+  String _formatDate(DateTime date) {
+    final weekday = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    return '${date.year}年${date.month}月${date.day}日 ${weekday[date.weekday - 1]}';
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+    required this.unit,
+    required this.bgColor,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+  final String unit;
+  final Color bgColor;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: bgColor,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: iconColor.withValues(alpha: 0.15)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: iconColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
-            child: Icon(icon, color: iconColor, size: 22),
+            child: Icon(icon, color: iconColor, size: 20),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          const SizedBox(height: 14),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: iconColor,
+                ),
+              ),
+              if (unit.isNotEmpty) ...[
+                const SizedBox(width: 4),
                 Text(
-                  label,
+                  unit,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: AppTheme.textTertiary,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      value,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    if (unit.isNotEmpty) ...[
-                      const SizedBox(width: 4),
-                      Text(
-                        unit,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.textTertiary,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
               ],
-            ),
+            ],
           ),
         ],
       ),
