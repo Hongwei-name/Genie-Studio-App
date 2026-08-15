@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -167,7 +168,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('zero_K-Genie'),
-        content: const Text('zero_K-Genie\nv3.0.3\n\n让审核工作回到清晰、可控的节奏。'),
+        content: const Text('zero_K-Genie\nv3.0.4\n\n让审核工作回到清晰、可控的节奏。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -307,12 +308,12 @@ class _NavigationRail extends StatelessWidget {
             color: Color(0xFFDDE2E9),
           ),
           _RailAction(
-            icon: Icons.info_outline_rounded,
+            icon: const Icon(Icons.info_outline_rounded),
             label: '关于',
             onTap: onAbout,
           ),
           _RailAction(
-            icon: Icons.open_in_new_rounded,
+            icon: const FaIcon(FontAwesomeIcons.github),
             label: '源码',
             onTap: () => launchUrl(
               Uri.parse('https://github.com/Hongwei-name/Genie-Studio-App'),
@@ -455,7 +456,7 @@ class _RailAction extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
+  final Widget icon;
   final String label;
   final VoidCallback onTap;
 
@@ -465,7 +466,7 @@ class _RailAction extends StatelessWidget {
       message: label,
       child: IconButton(
         onPressed: onTap,
-        icon: Icon(icon, size: 18),
+        icon: icon,
         color: AppTheme.textTertiary,
       ),
     );

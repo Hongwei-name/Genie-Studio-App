@@ -1,7 +1,7 @@
 ﻿name: zero_k_genie
 description: "zero_K-Genie 智元标注审核助手桌面端 - 解决并发能力不足及功能弱的问题"
 publish_to: 'none'
-version: 3.0.3+1
+version: 3.0.4+1
 
 environment:
   sdk: ^3.12.2
@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   dio: ^5.7.0
+  font_awesome_flutter: 11.0.0
   flutter_riverpod: ^2.5.1
   go_router: ^14.2.7
   shared_preferences: ^2.3.2
@@ -37,7 +38,7 @@ msix_config:
   publisher_display_name: zero_K
   identity_name: com.zerok.genie
   publisher: CN=zero_K
-  msix_version: 3.0.3.0
+  msix_version: 3.0.4.0
   logo_path: windows/runner/resources/app_icon.ico
   capabilities: internetClient
   languages: zh-CN
