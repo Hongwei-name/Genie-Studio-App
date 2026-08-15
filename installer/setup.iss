@@ -4,13 +4,13 @@
 
 [Setup]
 AppName=zero_K-Genie
-AppVersion=3.0.2
+AppVersion=3.0.3
 AppPublisher=zero_K
 DefaultDirName={localappdata}\Programs\GenieStudio
 UsePreviousAppDir=yes
 DisableDirPage=no
 DefaultGroupName=zero_K-Genie
-OutputBaseFilename=GenieStudio_Setup_v3.0.2
+OutputBaseFilename=GenieStudio_Setup_v3.0.3
 OutputDir=..\dist
 Compression=lzma2/ultra64
 SolidCompression=yes
