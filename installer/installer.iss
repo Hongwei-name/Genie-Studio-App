@@ -17,9 +17,6 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
-ArchitecturesAllowed=x64compatible
-ArchitecturesInstallIn64BitMode=x64compatible
-ChangesAssociations=yes
 DefaultGroupName={#MyAppName}
 LicenseFile=..\LICENSE.txt
 PrivilegesRequiredOverridesAllowed=dialog
@@ -36,6 +33,10 @@ VersionInfoDescription={#MyAppName} Setup
 VersionInfoCopyright=Copyright (C) 2024 {#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
+; 允许用户选择安装路径
+UsePreviousAppDir=yes
+; 显示安装路径选择页面
+DisableDirPage=no
 
 [Languages]
 Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
@@ -52,6 +53,7 @@ Source: "..\build\windows\x64\runner\Release\WebView2Loader.dll"; DestDir: "{app
 Source: "..\build\windows\x64\runner\Release\webview_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\windows\x64\runner\Release\window_manager_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\windows\x64\runner\Release\screen_retriever_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\windows\x64\runner\Release\system_tray_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\windows\x64\runner\Release\url_launcher_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 
@@ -65,4 +67,3 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\data"
-

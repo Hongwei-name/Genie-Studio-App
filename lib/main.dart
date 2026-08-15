@@ -28,16 +28,20 @@ Future<void> main() async {
   // 初始化配置存储
   final storage = await ConfigStorage.create();
 
-  // 清理非今日的已打开 EP 记录（对齐原脚本 Store.cleanOldEps）
+  // 清理非今日的已打开 EP 记录
   await storage.cleanOldOpenedEps();
 
   // 预加载配置并同步到 ApiClient
   final settings = storage.loadSettings();
   ApiClient.instance.init(cookie: settings.cookie);
 
-  // 初始化系统托盘
-  final systemTrayService = SystemTrayService();
-  await systemTrayService.init();
+  // 初始化系统托盘（可选，失败不影响主程序）
+  try {
+    final systemTrayService = SystemTrayService();
+    await systemTrayService.init();
+  } catch (e) {
+    debugPrint('⚠️ 系统托盘初始化失败（不影响主程序）: $e');
+  }
 
   runApp(
     ProviderScope(
