@@ -21,8 +21,7 @@ Future<void> main() async {
   windowManager.setTitle('zero_K-Genie');
   windowManager.setMinimumSize(const Size(800, 500));
 
-  // 设置窗口关闭时最小化而不是退出
-  await windowManager.setPreventClose(true);
+
 
   // 初始化配置存储
   final storage = await ConfigStorage.create();
@@ -43,3 +42,4 @@ Future<void> main() async {
     ),
   );
 }
+
