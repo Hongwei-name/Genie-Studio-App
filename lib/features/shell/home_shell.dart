@@ -5,6 +5,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/system_tray_service.dart';
+import '../../core/utils/system_tray_service.dart';
 import '../../data/models/app_settings.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/fail_eps_provider.dart';
@@ -566,6 +567,8 @@ class _TrafficLightsState extends State<_TrafficLights> {
     );
   }
 }
+
+
 
 
 
