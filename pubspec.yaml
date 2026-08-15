@@ -17,6 +17,7 @@ dependencies:
   url_launcher: ^6.3.1
   webview_windows: ^0.4.0
   window_manager: ^0.4.2
+  system_tray: ^2.0.3
   intl: ^0.19.0
 
 dev_dependencies:
@@ -37,5 +38,7 @@ msix_config:
   logo_path: windows/runner/resources/app_icon.ico
   capabilities: internetClient
   languages: zh-CN
+
+
 
 

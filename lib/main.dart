@@ -4,6 +4,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'core/network/api_client.dart';
 import 'core/network/browser_notification_service.dart';
+import 'core/utils/system_tray_service.dart';
 import 'data/storage/config_storage.dart';
 import 'providers/app_providers.dart';
 import 'app.dart';
@@ -21,7 +22,8 @@ Future<void> main() async {
   windowManager.setTitle('zero_K-Genie');
   windowManager.setMinimumSize(const Size(800, 500));
 
-
+  // 设置窗口关闭时隐藏到托盘而不是退出
+  await windowManager.setPreventClose(true);
 
   // 初始化配置存储
   final storage = await ConfigStorage.create();
@@ -33,6 +35,10 @@ Future<void> main() async {
   final settings = storage.loadSettings();
   ApiClient.instance.init(cookie: settings.cookie);
 
+  // 初始化系统托盘
+  final systemTrayService = SystemTrayService();
+  await systemTrayService.init();
+
   runApp(
     ProviderScope(
       overrides: [
@@ -42,4 +48,3 @@ Future<void> main() async {
     ),
   );
 }
-
