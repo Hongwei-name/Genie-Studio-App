@@ -1,46 +1,81 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
 
-/// 系统托盘服务（简化版）
-/// 由于 Windows API 调用复杂，使用简化实现
+/// Owns the Windows tray icon and the window's hide/exit behavior.
 class SystemTrayService {
   static final SystemTrayService _instance = SystemTrayService._internal();
   factory SystemTrayService() => _instance;
   SystemTrayService._internal();
 
+  final SystemTray _systemTray = SystemTray();
+  final Menu _menu = Menu();
   bool _isInitialized = false;
+  bool _isExiting = false;
 
-  /// 初始化系统托盘
+  bool get isInitialized => _isInitialized;
+
   Future<void> init() async {
     if (_isInitialized) return;
 
     try {
+      final iconPath = await _writeTrayIcon();
+      await _systemTray.initSystemTray(
+        title: 'zero_K-Genie',
+        iconPath: iconPath,
+        toolTip: 'zero_K-Genie 智元标注审核助手',
+      );
+      await _menu.buildFrom([
+        MenuItemLabel(label: '显示窗口', onClicked: (_) => showWindow()),
+        MenuSeparator(),
+        MenuItemLabel(label: '退出应用', onClicked: (_) => exitApp()),
+      ]);
+      await _systemTray.setContextMenu(_menu);
+      _systemTray.registerSystemTrayEventHandler((eventName) async {
+        if (eventName == kSystemTrayEventDoubleClick) {
+          await showWindow();
+        } else if (eventName == kSystemTrayEventClick) {
+          await _systemTray.popUpContextMenu();
+        }
+      });
       _isInitialized = true;
-      debugPrint('✅ 系统托盘服务已初始化');
-    } catch (e) {
-      debugPrint('❌ 系统托盘初始化失败: $e');
+      debugPrint('System tray initialized.');
+    } catch (error) {
+      _isInitialized = false;
+      debugPrint('System tray initialization failed: $error');
     }
   }
 
-  /// 显示窗口
+  Future<String> _writeTrayIcon() async {
+    final data = await rootBundle.load('windows/runner/resources/app_icon.ico');
+    final iconFile = File(
+      '${Directory.systemTemp.path}${Platform.pathSeparator}zero_k_genie_tray.ico',
+    );
+    await iconFile.writeAsBytes(data.buffer.asUint8List(), flush: true);
+    return iconFile.path;
+  }
+
   Future<void> showWindow() async {
     await windowManager.show();
     await windowManager.focus();
   }
 
-  /// 隐藏窗口（最小化到托盘）
-  Future<void> hideWindow() async {
-    await windowManager.hide();
-  }
+  Future<void> hideWindow() => windowManager.hide();
 
-  /// 退出应用
   Future<void> exitApp() async {
+    if (_isExiting) return;
+    _isExiting = true;
     _isInitialized = false;
-    await windowManager.destroy();
+    await _systemTray.destroy();
+    await windowManager.setPreventClose(false);
+    await windowManager.close();
   }
 
-  /// 销毁托盘
   Future<void> destroy() async {
     _isInitialized = false;
+    await _systemTray.destroy();
   }
 }

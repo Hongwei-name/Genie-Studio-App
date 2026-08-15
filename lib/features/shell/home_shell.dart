@@ -5,7 +5,6 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/system_tray_service.dart';
-import '../../core/utils/system_tray_service.dart';
 import '../../data/models/app_settings.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/fail_eps_provider.dart';
@@ -62,15 +61,22 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
     if (mounted) setState(() => _isMaximized = false);
   }
 
+  @override
+  Future<void> onWindowClose() async {
+    final tray = SystemTrayService();
+    if (tray.isInitialized) {
+      await tray.hideWindow();
+      return;
+    }
+    await tray.exitApp();
+  }
+
   void _openEp(String url, EpOpenMode mode, String cookie, int episodeId) {
     if (mode == EpOpenMode.webview) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => WebViewPage(
-            url: url,
-            cookie: cookie,
-            episodeId: episodeId,
-          ),
+          builder: (_) =>
+              WebViewPage(url: url, cookie: cookie, episodeId: episodeId),
         ),
       );
       ref.read(logProvider.notifier).info('WebView 打开 EP');
@@ -285,7 +291,9 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
               Icon(
                 selected ? selectedIcon : icon,
                 size: 20,
-                color: selected ? AppTheme.textOnSelection : AppTheme.textSecondary,
+                color: selected
+                    ? AppTheme.textOnSelection
+                    : AppTheme.textSecondary,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -294,7 +302,9 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: selected ? AppTheme.textOnSelection : AppTheme.textPrimary,
+                    color: selected
+                        ? AppTheme.textOnSelection
+                        : AppTheme.textPrimary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -334,10 +344,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            height: 0.5,
-            color: AppTheme.separator,
-          ),
+          Container(height: 0.5, color: AppTheme.separator),
           const SizedBox(height: 8),
           _buildFooterAction(
             icon: Icons.code,
@@ -375,7 +382,9 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFFFA400).withValues(alpha: 0.3),
+                              color: const Color(
+                                0xFFFFA400,
+                              ).withValues(alpha: 0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -398,7 +407,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'v1.0.0',
+                        'v1.0.1',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.textTertiary,
@@ -455,10 +464,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with WindowListener {
             Expanded(
               child: Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textSecondary,
-                ),
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -567,17 +573,3 @@ class _TrafficLightsState extends State<_TrafficLights> {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

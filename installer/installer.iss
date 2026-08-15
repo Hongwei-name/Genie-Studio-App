@@ -3,7 +3,7 @@
 ; ============================================================
 
 #define MyAppName "zero_K-Genie"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "zero_K"
 #define MyAppURL "https://github.com/Hongwei-name/Genie-Studio-App"
 #define MyAppExeName "zero_k_genie.exe"

@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/app_config.dart';
 import '../core/utils/format_utils.dart';
@@ -67,7 +67,9 @@ class LogNotifier extends StateNotifier<LogState> {
     final entry = LogEntry(time: now, message: message, type: type);
     final newList = [...state.entries, entry];
     if (newList.length > AppConfig.maxLogCount) {
-      final newEntries = newList.sublist(newList.length - AppConfig.maxLogCount);
+      final newEntries = newList.sublist(
+        newList.length - AppConfig.maxLogCount,
+      );
       state = LogState(entries: newEntries);
     } else {
       state = LogState(entries: newList);
@@ -83,7 +85,6 @@ class LogNotifier extends StateNotifier<LogState> {
 
   void clear() {
     state = const LogState();
-    info('日志已清空');
   }
 }
 

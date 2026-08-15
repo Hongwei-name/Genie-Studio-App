@@ -16,7 +16,7 @@ $projectRoot = "D:\project\Genie-Studio-App"
 Set-Location $projectRoot
 
 # 检查是否已构建
-$setupFile = "installer_output\zero_K-Genie_Setup_1.0.0.exe"
+$setupFile = "installer_output\zero_K-Genie_Setup_1.0.1.exe"
 if (-not (Test-Path $setupFile)) {
     Write-Host "❌ 错误: 未找到安装程序" -ForegroundColor Red
     Write-Host "请先运行: .\installer\Generate-Setup.ps1" -ForegroundColor Yellow
@@ -60,14 +60,14 @@ Write-Host ""
 
 try {
     # 创建 Tag
-    Write-Host "  创建 Tag: v1.0.0" -ForegroundColor Gray
-    git tag -a v1.0.0 -m "Release v1.0.0"
-    git push origin v1.0.0
+    Write-Host "  创建 Tag: v1.0.1" -ForegroundColor Gray
+    git tag -a v1.0.1 -m "Release v1.0.1"
+    git push origin v1.0.1
 
     # 创建 Release
     Write-Host "  创建 Release..." -ForegroundColor Gray
-    gh release create v1.0.0 `
-        --title "v1.0.0" `
+    gh release create v1.0.1 `
+        --title "v1.0.1" `
         --notes $releaseNotes `
         --latest `
         $setupFile
@@ -79,10 +79,10 @@ try {
         Write-Host "=====================================" -ForegroundColor Green
         Write-Host ""
         Write-Host "🔗 Release 链接:" -ForegroundColor Cyan
-        Write-Host "   https://github.com/Hongwei-name/Genie-Studio-App/releases/tag/v1.0.0" -ForegroundColor White
+        Write-Host "   https://github.com/Hongwei-name/Genie-Studio-App/releases/tag/v1.0.1" -ForegroundColor White
         Write-Host ""
         Write-Host "📦 已上传附件:" -ForegroundColor Cyan
-        Write-Host "   - zero_K-Genie_Setup_1.0.0.exe" -ForegroundColor White
+        Write-Host "   - zero_K-Genie_Setup_1.0.1.exe" -ForegroundColor White
         Write-Host ""
     } else {
         Write-Host ""

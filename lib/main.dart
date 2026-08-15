@@ -2,52 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'app.dart';
 import 'core/network/api_client.dart';
-import 'core/network/browser_notification_service.dart';
 import 'core/utils/system_tray_service.dart';
 import 'data/storage/config_storage.dart';
 import 'providers/app_providers.dart';
-import 'app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // 初始化窗口管理器
   await windowManager.ensureInitialized();
 
-  // 隐藏原生 Windows 标题栏，使用自绘 macOS 风格标题栏
   windowManager.setAsFrameless();
-  // 开启窗口透明，让圆角裁切后不露出底层黑色画布
   windowManager.setBackgroundColor(Colors.transparent);
   windowManager.setTitle('zero_K-Genie');
   windowManager.setMinimumSize(const Size(800, 500));
-
-  // 设置窗口关闭时隐藏到托盘而不是退出
   await windowManager.setPreventClose(true);
 
-  // 初始化配置存储
   final storage = await ConfigStorage.create();
-
-  // 清理非今日的已打开 EP 记录
   await storage.cleanOldOpenedEps();
 
-  // 预加载配置并同步到 ApiClient
   final settings = storage.loadSettings();
   ApiClient.instance.init(cookie: settings.cookie);
 
-  // 初始化系统托盘（可选，失败不影响主程序）
-  try {
-    final systemTrayService = SystemTrayService();
-    await systemTrayService.init();
-  } catch (e) {
-    debugPrint('⚠️ 系统托盘初始化失败（不影响主程序）: $e');
-  }
+  // When tray setup fails, close handling falls back to a normal app exit.
+  await SystemTrayService().init();
 
   runApp(
     ProviderScope(
-      overrides: [
-        configStorageProvider.overrideWithValue(storage),
-      ],
+      overrides: [configStorageProvider.overrideWithValue(storage)],
       child: const ZeroKGenieApp(),
     ),
   );
