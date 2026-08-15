@@ -93,12 +93,7 @@
                 message: '标注成功'
             });
 
-            // 显示桌面通知
-            GM_notification({
-                title: 'zero_K-Genie',
-                text: `标注成功: EP ${episodeId}`,
-                timeout: 3000
-            });
+            // 通知已发送到应用
         },
 
         /**
@@ -324,3 +319,4 @@
     }
 
 })();
+
