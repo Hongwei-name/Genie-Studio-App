@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_windows/webview_windows.dart';
@@ -30,6 +30,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   late bool _showAllJobs;
   bool _obscureCookie = true;
   bool _isLoggingIn = false;
+  bool _isInstallingUserscript = false;
   WebviewController? _webviewController;
 
   @override
@@ -153,6 +154,12 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                         ),
                         _buildEpOpenModeRow(),
                       ],
+                    ),
+
+                    // 浏览器脚本
+                    _buildSection(
+                      title: '浏览器脚本',
+                      children: [_buildUserscriptInstallRow()],
                     ),
 
                     // 验收失败筛选
@@ -403,11 +410,11 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   /// 打开登录 WebView
   Future<void> _openLoginWebView() async {
     setState(() => _isLoggingIn = true);
-    
+
     try {
       _webviewController = WebviewController();
       await _webviewController!.initialize();
-      
+
       // 监听 URL 变化，检测登录完成
       _webviewController!.url.listen((url) {
         if (url != null && !url.contains('/login')) {
@@ -476,7 +483,6 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
       // 对话框关闭后清理资源
       _webviewController?.dispose();
       _webviewController = null;
-
     } catch (e) {
       ref.read(logProvider.notifier).error('登录失败: $e');
       _showToast('登录失败: $e');
@@ -490,7 +496,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   /// 提取 Cookie 并关闭对话框
   Future<void> _extractCookieAndClose() async {
     if (_webviewController == null) return;
-    
+
     try {
       // 执行 JavaScript 获取 Cookie
       final result = await _webviewController!.executeScript('document.cookie');
@@ -499,14 +505,14 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
         setState(() {
           _cookieCtrl.text = cookie;
         });
-        
+
         // 自动保存
         await _save();
-        
+
         if (mounted) {
           // 使用 Navigator.of(context).pop() 关闭最顶层的对话框
           Navigator.of(context).pop();
-          
+
           _showToast('Cookie 获取成功！');
           ref.read(logProvider.notifier).success('登录成功，Cookie 已获取');
         }
@@ -685,6 +691,61 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     );
   }
 
+  Widget _buildUserscriptInstallRow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '安装脚本猫并配置脚本',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '打开官网和当前版本脚本安装页',
+                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          OutlinedButton.icon(
+            onPressed: _isInstallingUserscript ? null : _installUserscript,
+            icon: _isInstallingUserscript
+                ? const SizedBox(
+                    width: 15,
+                    height: 15,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.open_in_browser_outlined, size: 16),
+            label: Text(
+              _isInstallingUserscript ? '打开中...' : '一键安装',
+              style: const TextStyle(fontSize: 12),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.primary,
+              side: BorderSide(color: AppTheme.primary.withValues(alpha: .3)),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildScreenerRow() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -847,6 +908,39 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   Future<void> _togglePause(bool paused) async {
     await ref.read(refreshProvider.notifier).togglePause();
     ref.read(logProvider.notifier).info(paused ? '已暂停刷新' : '已恢复刷新');
+  }
+
+  Future<void> _installUserscript() async {
+    if (_isInstallingUserscript) return;
+    setState(() => _isInstallingUserscript = true);
+
+    try {
+      final managerOpened = await launchUrl(
+        Uri.parse(AppConfig.scriptCatInstallUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      // Give the browser a moment to create the first tab before opening the
+      // script URL in a second tab.
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      final scriptOpened = await launchUrl(
+        Uri.parse(AppConfig.userscriptInstallUrl),
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!mounted) return;
+      if (managerOpened && scriptOpened) {
+        _showToast('已打开脚本猫官网和脚本安装页。请先安装扩展，再在脚本页确认安装。');
+        ref.read(logProvider.notifier).success('已打开脚本猫安装页和 zero_K-Genie 脚本配置页');
+      } else {
+        _showToast('无法打开系统浏览器，请检查默认浏览器设置。');
+        ref.read(logProvider.notifier).error('打开脚本猫安装页失败');
+      }
+    } catch (e) {
+      ref.read(logProvider.notifier).error('打开脚本猫安装页失败: $e');
+      if (mounted) _showToast('打开脚本猫安装页失败，请稍后重试。');
+    } finally {
+      if (mounted) setState(() => _isInstallingUserscript = false);
+    }
   }
 
   Future<void> _save() async {

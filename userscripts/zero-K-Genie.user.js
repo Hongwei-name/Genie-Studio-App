@@ -5,6 +5,8 @@
 // @description  优化初始状态为最小化
 // @author       You
 // @match        https://tgs-geniestudio.agibot.com/*
+// @downloadURL  https://raw.githubusercontent.com/Hongwei-name/Genie-Studio-App/zero/userscripts/zero-K-Genie.user.js
+// @updateURL    https://raw.githubusercontent.com/Hongwei-name/Genie-Studio-App/zero/userscripts/zero-K-Genie.user.js
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addStyle

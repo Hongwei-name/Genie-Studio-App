@@ -10,6 +10,11 @@ class AppConfig {
   static const String webViewLoginUrl =
       'https://tgs-geniestudio.agibot.com/login/gxcy';
 
+  /// 脚本猫安装页与当前版本用户脚本地址
+  static const String scriptCatInstallUrl = 'https://scriptcat.org/';
+  static const String userscriptInstallUrl =
+      'https://raw.githubusercontent.com/Hongwei-name/Genie-Studio-App/zero/userscripts/zero-K-Genie.user.js';
+
   /// 默认刷新间隔（毫秒）
   static const int defaultRefreshInterval = 5000;
 
