@@ -3,7 +3,7 @@
 ; ============================================================
 
 #define MyAppName "zero_K-Genie"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "3.0.7"
 #define MyAppPublisher "zero_K"
 #define MyAppURL "https://github.com/Hongwei-name/Genie-Studio-App"
 #define MyAppExeName "zero_k_genie.exe"
@@ -16,10 +16,14 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName={localappdata}\Programs\{#MyAppName}
+UsePreviousAppDir=yes
+DisableDirPage=no
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+ChangesAssociations=yes
 DefaultGroupName={#MyAppName}
-LicenseFile=..\LICENSE.txt
-PrivilegesRequiredOverridesAllowed=dialog
+PrivilegesRequired=lowest
 OutputDir=..\installer_output
 OutputBaseFilename={#MyAppName}_Setup_{#MyAppVersion}
 SetupIconFile=..\windows\runner\resources\app_icon.ico
@@ -30,13 +34,9 @@ WizardSizePercent=100
 VersionInfoVersion={#MyAppVersion}.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName} Setup
-VersionInfoCopyright=Copyright (C) 2024 {#MyAppPublisher}
+VersionInfoCopyright=Copyright (C) 2026 {#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
-; 允许用户选择安装路径
-UsePreviousAppDir=yes
-; 显示安装路径选择页面
-DisableDirPage=no
 
 [Languages]
 Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
@@ -52,10 +52,11 @@ Source: "..\build\windows\x64\runner\Release\data\*"; DestDir: "{app}\data"; Fla
 Source: "..\build\windows\x64\runner\Release\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\windows\x64\runner\Release\webview_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\windows\x64\runner\Release\window_manager_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\windows\x64\runner\Release\tray_manager_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\windows\x64\runner\Release\screen_retriever_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\build\windows\x64\runner\Release\system_tray_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\windows\x64\runner\Release\url_launcher_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\userscripts\zero-K-Genie.user.js"; DestDir: "{app}\userscripts"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

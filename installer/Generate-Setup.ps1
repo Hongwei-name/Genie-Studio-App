@@ -17,6 +17,46 @@ Set-Location $projectRoot
 Write-Host "📁 项目目录: $projectRoot" -ForegroundColor White
 Write-Host ""
 
+# 从 pubspec.yaml 自动递增补丁版本，并同步所有 Windows/安装程序版本信息。
+$pubspecPath = Join-Path $projectRoot "pubspec.yaml"
+$pubspec = [System.IO.File]::ReadAllText($pubspecPath)
+$versionMatch = [regex]::Match($pubspec, '(?m)^version:\s*(\d+)\.(\d+)\.(\d+)\+(\d+)\s*$')
+if (-not $versionMatch.Success) {
+    Write-Host "❌ 无法从 pubspec.yaml 读取版本号" -ForegroundColor Red
+    exit 1
+}
+
+$major = [int]$versionMatch.Groups[1].Value
+$minor = [int]$versionMatch.Groups[2].Value
+$patch = [int]$versionMatch.Groups[3].Value + 1
+$version = "$major.$minor.$patch"
+$buildVersion = "$version+1"
+$msixVersion = "$version.0"
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+$pubspec = [regex]::Replace($pubspec, '(?m)^version:\s*.*$', "version: $buildVersion")
+$pubspec = [regex]::Replace($pubspec, '(?m)^\s*msix_version:\s*.*$', "  msix_version: $msixVersion")
+[System.IO.File]::WriteAllText($pubspecPath, $pubspec, $utf8NoBom)
+
+$installerPath = Join-Path $projectRoot "installer\installer.iss"
+$installer = [System.IO.File]::ReadAllText($installerPath)
+$installer = [regex]::Replace($installer, '(?m)^#define MyAppVersion "[^"]+"', ('#define MyAppVersion "' + $version + '"'))
+[System.IO.File]::WriteAllText($installerPath, $installer, $utf8NoBom)
+
+$setupPath = Join-Path $projectRoot "installer\setup.iss"
+$setup = [System.IO.File]::ReadAllText($setupPath)
+$setup = [regex]::Replace($setup, '(?m)^AppVersion=.*$', "AppVersion=$version")
+$setup = [regex]::Replace($setup, '(?m)^OutputBaseFilename=.*$', "OutputBaseFilename=GenieStudio_Setup_v$version")
+[System.IO.File]::WriteAllText($setupPath, $setup, $utf8NoBom)
+
+$runnerRcPath = Join-Path $projectRoot "windows\runner\Runner.rc"
+$runnerRc = [System.IO.File]::ReadAllText($runnerRcPath)
+$runnerRc = [regex]::Replace($runnerRc, '(?m)^#define VERSION_AS_STRING "[^"]+"', ('#define VERSION_AS_STRING "' + $version + '"'))
+[System.IO.File]::WriteAllText($runnerRcPath, $runnerRc, $utf8NoBom)
+
+Write-Host "✅ 版本已自动递增到 $version" -ForegroundColor Green
+Write-Host ""
+
 # 步骤 1: 构建 Flutter Release
 Write-Host "[1/3] 构建 Flutter Release 版本..." -ForegroundColor Yellow
 Write-Host "这可能需要几分钟时间，请耐心等待..." -ForegroundColor Gray
@@ -53,7 +93,6 @@ $isccPath = "D:\software\Inno Setup 6\ISCC.exe"
 if (-not (Test-Path $isccPath)) {
     Write-Host "❌ 错误: 找不到 Inno Setup" -ForegroundColor Red
     Write-Host "   路径: $isccPath" -ForegroundColor Gray
-    Read-Host "按回车键退出"
     exit 1
 }
 
@@ -75,7 +114,6 @@ $issFile = "$projectRoot\installer\installer.iss"
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
     Write-Host "❌ 安装程序生成失败" -ForegroundColor Red
-    Read-Host "按回车键退出"
     exit 1
 }
 
@@ -84,7 +122,7 @@ Write-Host "[3/3] 完成!" -ForegroundColor Green
 Write-Host ""
 
 # 检查输出文件
-$setupFile = "$outputDir\zero_K-Genie_Setup_1.0.1.exe"
+$setupFile = "$outputDir\zero_K-Genie_Setup_$version.exe"
 if (Test-Path $setupFile) {
     $fileSize = [math]::Round((Get-Item $setupFile).Length / 1MB, 2)
     
@@ -102,14 +140,9 @@ if (Test-Path $setupFile) {
     Write-Host "   2. 用户双击运行即可安装" -ForegroundColor White
     Write-Host ""
     
-    # 询问是否打开文件夹
-    $openFolder = Read-Host "是否打开安装程序所在文件夹? (Y/N)"
-    if ($openFolder -eq "Y" -or $openFolder -eq "y") {
-        explorer.exe $outputDir
-    }
 } else {
     Write-Host "❌ 未找到生成的安装程序" -ForegroundColor Red
+    exit 1
 }
 
 Write-Host ""
-Read-Host "按回车键退出"

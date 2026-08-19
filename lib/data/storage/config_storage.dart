@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_settings.dart';
+import '../models/daily_quote.dart';
 import '../../core/config/app_config.dart';
 import '../../core/utils/format_utils.dart';
 
@@ -19,6 +20,7 @@ class ConfigStorage {
   static const _kFrames = 'ep_total_frames';
   static const _kCompletedEps = 'completed_eps';
   static const _kOpenedEps = 'opened_eps';
+  static const _kDailyQuote = 'daily_quote';
 
   static Future<ConfigStorage> create() async {
     final prefs = await SharedPreferences.getInstance();
@@ -145,6 +147,29 @@ class ConfigStorage {
       map.remove(key);
     }
     if (changed) await _saveMap(_kOpenedEps, map);
+  }
+
+  // ========== 每日谏言 ==========
+
+  /// 读取当天缓存的谏言；跨日缓存自动失效。
+  DailyQuote? loadDailyQuote() {
+    final raw = _prefs.getString(_kDailyQuote);
+    if (raw == null) return null;
+    try {
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      if (json['date'] != FormatUtils.todayString()) return null;
+      return DailyQuote.fromJson(Map<String, dynamic>.from(json));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 保存谏言并标注缓存日期。
+  Future<void> saveDailyQuote(DailyQuote quote) async {
+    await _prefs.setString(
+      _kDailyQuote,
+      jsonEncode({...quote.toJson(), 'date': FormatUtils.todayString()}),
+    );
   }
 
   // ========== 内部工具 ==========

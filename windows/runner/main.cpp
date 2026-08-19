@@ -25,8 +25,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project);
-  Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
+  RECT work_area{};
+  ::SystemParametersInfo(SPI_GETWORKAREA, 0, &work_area, 0);
+  const LONG work_width = work_area.right - work_area.left;
+  const LONG work_height = work_area.bottom - work_area.top;
+  const LONG centered_x = work_area.left +
+                          (work_width - static_cast<LONG>(size.width)) / 2;
+  const LONG centered_y = work_area.top +
+                          (work_height - static_cast<LONG>(size.height)) / 2;
+  Win32Window::Point origin(
+      static_cast<unsigned int>(centered_x > 0 ? centered_x : 0),
+      static_cast<unsigned int>(centered_y > 0 ? centered_y : 0));
   if (!window.Create(L"zero_K-Genie", origin, size)) {
     return EXIT_FAILURE;
   }

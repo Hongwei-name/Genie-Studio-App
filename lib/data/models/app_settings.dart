@@ -34,7 +34,7 @@ class AppSettings {
   /// 显示所有 Job（含无待审 EP 的）
   final bool showAllJobs;
 
-  /// 并发数（1-64）
+  /// 并发数（正整数）
   final int concurrency;
 
   /// EP 审核页打开方式

@@ -4,7 +4,6 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'core/network/api_client.dart';
-import 'core/utils/system_tray_service.dart';
 import 'data/storage/config_storage.dart';
 import 'providers/app_providers.dart';
 
@@ -23,9 +22,6 @@ Future<void> main() async {
 
   final settings = storage.loadSettings();
   ApiClient.instance.init(cookie: settings.cookie);
-
-  // When tray setup fails, close handling falls back to a normal app exit.
-  await SystemTrayService().init();
 
   runApp(
     ProviderScope(

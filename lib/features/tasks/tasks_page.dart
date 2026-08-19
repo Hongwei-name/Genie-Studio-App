@@ -1,14 +1,13 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/app_settings.dart';
 import '../../data/models/episode.dart';
+import '../../data/models/job.dart';
 import '../../data/models/task.dart';
 import '../../providers/app_providers.dart';
-import '../../providers/log_provider.dart';
 import '../../providers/refresh_provider.dart';
 import '../../providers/tasks_provider.dart';
 
@@ -24,870 +23,803 @@ class _TasksPageState extends ConsumerState<TasksPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(tasksProvider);
     final settings = ref.watch(settingsProvider);
-    final selectedTaskId = ref.watch(selectedTaskIdProvider);
-    final selectedTask = _findTask(state.tasks, selectedTaskId);
+    final selectedId = ref.watch(selectedTaskIdProvider);
+    final selected = _taskFor(state.tasks, selectedId);
 
     return Column(
       children: [
-        _buildToolbar(state, selectedTask, settings.isPaused),
-        _buildTableHeader(selectedTask),
+        _WorkspaceHeader(state: state, settings: settings),
+        _MetricStrip(state: state),
         Expanded(
-          child: _buildBody(state, settings, selectedTask),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 4, 18, 18),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: 278,
+                  child: _TaskQueue(state: state, selected: selected),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _DetailPane(
+                    state: state,
+                    settings: settings,
+                    selected: selected,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        _buildFooter(state),
       ],
     );
   }
 
-  Widget _buildToolbar(TasksState state, Task? selectedTask, bool isPaused) {
-    return Container(
-      height: 62,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        border: Border(
-          bottom: BorderSide(color: AppTheme.separatorLight),
-        ),
-      ),
-      child: Row(
-        children: [
-          _ToolbarButton(
-            icon: isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-            label: isPaused ? '继续抓取' : '暂停抓取',
-            color: AppTheme.textPrimary,
-            onPressed: () async {
-              await ref.read(refreshProvider.notifier).togglePause();
-            },
-          ),
-          const SizedBox(width: 12),
-          _TaskPicker(
-            tasks: state.tasks,
-            selectedTask: selectedTask,
-            onChanged: (task) async {
-              if (task == null) return;
-              ref.read(selectedTaskIdProvider.notifier).state = task.id;
-              await ref
-                  .read(tasksProvider.notifier)
-                  .toggleExpand(task.id, isExpanded: true);
-            },
-          ),
-          const SizedBox(width: 12),
-          _ToolbarIconButton(
-            icon: Icons.delete_outline,
-            label: '清空列表',
-            color: AppTheme.danger,
-            onPressed: state.isLoading
-                ? null
-                : () async {
-                    ref.read(selectedTaskIdProvider.notifier).state = null;
-                    await ref.read(tasksProvider.notifier).fetchTasks();
-                  },
-          ),
-          const SizedBox(width: 12),
-          _ToolbarIconButton(
-            icon: Icons.download_outlined,
-            label: '批量打开',
-            color: AppTheme.success,
-            onPressed: selectedTask == null
-                ? null
-                : () => ref.read(tasksProvider.notifier).openNormalEps(
-                      selectedTask.id,
-                    ),
-          ),
-          const Spacer(),
-          _ToolbarSquareButton(
-            icon: Icons.refresh,
-            tooltip: '刷新任务列表',
-            onPressed: state.isLoading
-                ? null
-                : () => ref.read(tasksProvider.notifier).fetchTasks(),
-          ),
-          const SizedBox(width: 6),
-          _ToolbarSquareButton(
-            icon: Icons.apps_rounded,
-            tooltip: '资源视图',
-            selected: true,
-            onPressed: () => ref.read(selectedTaskIdProvider.notifier).state = null,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTableHeader(Task? selectedTask) {
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: Color(0xFFF7F8FA),
-        border: Border(
-          bottom: BorderSide(color: AppTheme.separatorLight),
-        ),
-      ),
-      child: Row(
-        children: [
-          _BackHeaderButton(
-            width: 88,
-            onPressed: selectedTask == null
-                ? null
-                : () => ref.read(selectedTaskIdProvider.notifier).state = null,
-          ),
-          const _HeaderCell(width: 88, label: '状态'),
-          const Expanded(child: _HeaderCell(label: '描述', icon: Icons.search)),
-          const _HeaderCell(width: 160, label: '操作'),
-        ],
-      ),
-    );
-  }
-
-  Task? _findTask(List<Task> tasks, int? taskId) {
-    if (taskId == null) return null;
+  Task? _taskFor(List<Task> tasks, int? id) {
     for (final task in tasks) {
-      if (task.id == taskId) return task;
+      if (task.id == id) return task;
     }
     return null;
   }
+}
 
-  Widget _buildBody(
-    TasksState state,
-    AppSettings settings,
-    Task? selectedTask,
-  ) {
-    if (settings.cookie.isEmpty) {
-      return _buildCenteredState(
-        icon: Icons.key_off_outlined,
-        title: '未配置 Token',
-        message: '前往系统设置填入浏览器 Cookie 后再获取资源',
-        color: AppTheme.warning,
-      );
-    }
+class _WorkspaceHeader extends ConsumerWidget {
+  const _WorkspaceHeader({required this.state, required this.settings});
 
-    if (state.error != null) {
-      return _buildCenteredState(
-        icon: Icons.wifi_off_outlined,
-        title: state.error!.contains('登录失效') ? '登录失效' : '加载失败',
-        message: state.error!,
-        color: AppTheme.danger,
-        actionLabel: '重试',
-        onAction: () => ref.read(tasksProvider.notifier).fetchTasks(),
-      );
-    }
+  final TasksState state;
+  final AppSettings settings;
 
-    if (state.isLoading && state.tasks.isEmpty) {
-      return const Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    }
-
-    if (state.tasks.isEmpty) {
-      return _buildCenteredState(
-        icon: Icons.folder_off_outlined,
-        title: '无数据',
-        message: '当前没有待审核任务',
-        color: AppTheme.textTertiary,
-      );
-    }
-
-    if (selectedTask == null) {
-      return _buildTaskOverview(state);
-    }
-
-    return _buildTaskRows(selectedTask, state, settings);
-  }
-
-  Widget _buildTaskOverview(TasksState state) {
-    final sorted = [...state.tasks]
-      ..sort((a, b) => b.notCheckCount.compareTo(a.notCheckCount));
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: sorted.length,
-      separatorBuilder: (_, _) => const Divider(
-        height: 1,
-        indent: 20,
-        endIndent: 20,
-        color: AppTheme.separatorLight,
-      ),
-      itemBuilder: (context, index) {
-        final task = sorted[index];
-        return _ResourceRow(
-          domain: '#${task.id}',
-          status: task.notCheckCount > 0 ? '待审核' : '完成',
-          description: task.name,
-          statusColor: task.notCheckCount > 0 ? AppTheme.success : AppTheme.textTertiary,
-          onTap: () async {
-            ref.read(selectedTaskIdProvider.notifier).state = task.id;
-            await ref
-                .read(tasksProvider.notifier)
-                .toggleExpand(task.id, isExpanded: true);
-          },
-          action: _RowAction(
-            icon: Icons.chevron_right,
-            tooltip: '打开任务',
-            onPressed: () async {
-              ref.read(selectedTaskIdProvider.notifier).state = task.id;
-              await ref
-                  .read(tasksProvider.notifier)
-                  .toggleExpand(task.id, isExpanded: true);
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTaskRows(Task task, TasksState state, AppSettings settings) {
-    final isLoading = state.loadingTasks.contains(task.id);
-    final error = state.taskErrors[task.id];
-    final jobs = state.jobsByTask[task.id];
-
-    if (error != null) {
-      return _buildCenteredState(
-        icon: Icons.error_outline,
-        title: '任务加载失败',
-        message: error,
-        color: AppTheme.danger,
-        actionLabel: '重试',
-        onAction: () => ref.read(tasksProvider.notifier).refreshTask(task.id),
-      );
-    }
-
-    if ((jobs == null || jobs.isEmpty) && isLoading) {
-      return const Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    }
-
-    if (jobs == null || jobs.isEmpty) {
-      return _buildCenteredState(
-        icon: Icons.inbox_outlined,
-        title: '无数据',
-        message: '该任务暂无 Job 或 EP',
-        color: AppTheme.textTertiary,
-        actionLabel: '刷新',
-        onAction: () => ref.read(tasksProvider.notifier).refreshTask(task.id),
-      );
-    }
-
-    final rows = <_EpRow>[];
-    for (final job in jobs) {
-      final jobIds = job.displayJobIds;
-      final hasEpisodes = jobIds.any(
-        (jobId) => (state.epsByJob['${task.id}_$jobId']?.isNotEmpty ?? false),
-      );
-      if (!settings.showAllJobs && !hasEpisodes) continue;
-      for (final jobId in jobIds) {
-        final eps = state.epsByJob['${task.id}_$jobId'];
-        if (eps == null || eps.isEmpty) {
-          rows.add(_EpRow.empty(task, jobId));
-        } else {
-          for (final ep in eps) {
-            rows.add(_EpRow(task: task, jobId: jobId, episode: ep));
-          }
-        }
-      }
-    }
-
-    if (rows.isEmpty) {
-      return _buildCenteredState(
-        icon: Icons.image_not_supported_outlined,
-        title: '无数据',
-        message: '没有可展示的 EP 资源',
-        color: AppTheme.textTertiary,
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: rows.length,
-      separatorBuilder: (_, _) => const Divider(
-        height: 1,
-        indent: 20,
-        endIndent: 20,
-        color: AppTheme.separatorLight,
-      ),
-      itemBuilder: (context, index) => _buildEpRow(rows[index], state),
-    );
-  }
-
-  Widget _buildEpRow(_EpRow row, TasksState state) {
-    final ep = row.episode;
-    if (ep == null) {
-      return _ResourceRow(
-        domain: '#${row.task.id}',
-        status: '无 EP',
-        description: 'Job ${row.jobId}',
-        statusColor: AppTheme.textTertiary,
-        onTap: () => ref.read(tasksProvider.notifier).refreshTask(row.task.id),
-        action: _RowAction(
-          icon: Icons.refresh,
-          tooltip: '刷新任务',
-          onPressed: () => ref.read(tasksProvider.notifier).refreshTask(row.task.id),
-        ),
-      );
-    }
-
-    final epKey = 'task${row.task.id}-ep${ep.id}';
-    final isOpened = state.openedEpKeys.contains(epKey);
-    final isFailed = ep.isFailed;
-    final status = isFailed ? '失败' : (isOpened ? '已打开' : '待审核');
-    final statusColor = isFailed
-        ? AppTheme.danger
-        : isOpened
-            ? AppTheme.textTertiary
-            : AppTheme.success;
-
-    return _ResourceRow(
-      domain: '#${row.task.id}',
-      status: status,
-      description: '${row.task.name} · Job ${row.jobId} · EP ${ep.id}',
-      statusColor: statusColor,
-      onTap: () => _onEpTap(row.task.id, row.jobId, ep.id, epKey),
-      action: _RowAction(
-        icon: Icons.open_in_new,
-        tooltip: '打开 EP',
-        onPressed: () => _onEpTap(row.task.id, row.jobId, ep.id, epKey),
-      ),
-      trailingAction: _RowAction(
-        icon: Icons.play_arrow_rounded,
-        tooltip: '预览首帧',
-        onPressed: () => _openPreview(row.task.id, row.jobId, state),
-      ),
-    );
-  }
-
-  Widget _buildCenteredState({
-    required IconData icon,
-    required String title,
-    required String message,
-    required Color color,
-    String? actionLabel,
-    VoidCallback? onAction,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 54, color: color.withValues(alpha: 0.55)),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.textTertiary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Text(
-                message,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textTertiary,
-                  height: 1.4,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 16),
-              FilledButton(onPressed: onAction, child: Text(actionLabel)),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFooter(TasksState state) {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final paused = settings.isPaused;
     return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 16),
       decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        border: Border(top: BorderSide(color: AppTheme.separatorLight)),
+        border: Border(bottom: BorderSide(color: Color(0xFFE7EAF0))),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _FooterLink('证书下载', () => _openUrl('https://github.com/Hongwei-name/Genie-Studio-App/releases')),
-          _FooterLink('软件源码', () => _openUrl('https://github.com/Hongwei-name/Genie-Studio-App')),
-          _FooterLink('帮助支持', () => _openUrl('https://github.com/Hongwei-name/Genie-Studio-App/issues')),
-          _FooterLink('更新日志', () => _openUrl('https://github.com/Hongwei-name/Genie-Studio-App/releases')),
-          const Spacer(),
-          Text(
-            state.lastUpdated == null
-                ? '${state.tasks.length} 个任务'
-                : '${state.tasks.length} 个任务 · ${state.totalPendingCount} 待审',
-            style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '审核工作台',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  '集中处理待审核资源，进度会在本地持续同步。',
+                  style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+                ),
+              ],
+            ),
+          ),
+          _HeaderAction(
+            icon: paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+            label: paused ? '继续同步' : '暂停同步',
+            onTap: () => ref.read(refreshProvider.notifier).togglePause(),
+            highlighted: paused,
+          ),
+          const SizedBox(width: 8),
+          _HeaderAction(
+            icon: Icons.refresh_rounded,
+            label: '刷新',
+            onTap: state.isLoading
+                ? null
+                : () => ref.read(tasksProvider.notifier).fetchTasks(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricStrip extends StatelessWidget {
+  const _MetricStrip({required this.state});
+
+  final TasksState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final values = [
+      (
+        '任务',
+        '${state.tasks.length}',
+        Icons.grid_view_rounded,
+        const Color(0xFF5E6AD2),
+      ),
+      (
+        '待审核 EP',
+        '${state.totalPendingCount}',
+        Icons.pending_actions_rounded,
+        const Color(0xFFE89A23),
+      ),
+      (
+        '已展开',
+        '${state.jobsByTask.length}',
+        Icons.layers_outlined,
+        const Color(0xFF238A68),
+      ),
+      (
+        '最近同步',
+        state.lastUpdated == null ? '--' : _time(state.lastUpdated!),
+        Icons.sync_rounded,
+        const Color(0xFF788492),
+      ),
+    ];
+    return SizedBox(
+      height: 96,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(22, 16, 22, 12),
+        itemCount: values.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final value = values[index];
+          return SizedBox(
+            width: 166,
+            child: _Metric(
+              label: value.$1,
+              value: value.$2,
+              icon: value.$3,
+              color: value.$4,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _time(DateTime date) =>
+      '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+}
+
+class _Metric extends StatelessWidget {
+  const _Metric({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FB),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE6E9EE)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: color),
+          ),
+          const SizedBox(width: 9),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppTheme.textTertiary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskQueue extends ConsumerWidget {
+  const _TaskQueue({required this.state, required this.selected});
+
+  final TasksState state;
+  final Task? selected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE4E8EE)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 15, 12, 12),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '审核队列',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                Text(
+                  '${state.tasks.length}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFE4E8EE)),
+          Expanded(
+            child: state.tasks.isEmpty
+                ? const Center(
+                    child: Text(
+                      '暂无任务',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: state.tasks.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 4),
+                    itemBuilder: (context, index) {
+                      final task = state.tasks[index];
+                      final active = selected?.id == task.id;
+                      return _TaskTile(
+                        task: task,
+                        selected: active,
+                        loading: state.loadingTasks.contains(task.id),
+                        onTap: () async {
+                          ref.read(selectedTaskIdProvider.notifier).state =
+                              task.id;
+                          await ref
+                              .read(tasksProvider.notifier)
+                              .toggleExpand(task.id, isExpanded: true);
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskTile extends StatelessWidget {
+  const _TaskTile({
+    required this.task,
+    required this.selected,
+    required this.loading,
+    required this.onTap,
+  });
+
+  final Task task;
+  final bool selected;
+  final bool loading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? const Color(0xFFFFF4DF) : Colors.transparent,
+      borderRadius: BorderRadius.circular(9),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(9),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? const Color(0xFFFFD78A) : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: selected
+                        ? const Color(0xFFFFC65A)
+                        : const Color(0xFFE3E7EC),
+                  ),
+                ),
+                child: Text(
+                  '${task.id}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: selected
+                        ? const Color(0xFF875100)
+                        : AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      task.notCheckCount == 0
+                          ? '已完成'
+                          : '${task.notCheckCount} 个待审核',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: task.notCheckCount == 0
+                            ? AppTheme.success
+                            : const Color(0xFFB46C00),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (loading)
+                const SizedBox(
+                  width: 15,
+                  height: 15,
+                  child: CircularProgressIndicator(strokeWidth: 1.7),
+                )
+              else
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 17,
+                  color: selected
+                      ? const Color(0xFFB87916)
+                      : AppTheme.textTertiary,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailPane extends ConsumerWidget {
+  const _DetailPane({
+    required this.state,
+    required this.settings,
+    required this.selected,
+  });
+
+  final TasksState state;
+  final AppSettings settings;
+  final Task? selected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (settings.cookie.isEmpty)
+      return _EmptyDetail(
+        icon: Icons.key_off_outlined,
+        title: '先连接审核账号',
+        message: '在偏好设置中填入 Cookie 后，任务会自动出现在这里。',
+      );
+    if (state.error != null)
+      return _EmptyDetail(
+        icon: Icons.wifi_off_outlined,
+        title: '同步失败',
+        message: state.error!,
+        action: '重试',
+        onAction: () => ref.read(tasksProvider.notifier).fetchTasks(),
+      );
+    if (state.isLoading && state.tasks.isEmpty)
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    if (selected == null) return _WelcomeDetail(state: state);
+
+    final jobs = state.jobsByTask[selected!.id];
+    if (state.taskErrors[selected!.id] != null)
+      return _EmptyDetail(
+        icon: Icons.error_outline,
+        title: '任务加载失败',
+        message: state.taskErrors[selected!.id]!,
+        action: '重新加载',
+        onAction: () =>
+            ref.read(tasksProvider.notifier).refreshTask(selected!.id),
+      );
+    if (jobs == null || jobs.isEmpty) {
+      if (state.loadingTasks.contains(selected!.id))
+        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return _EmptyDetail(
+        icon: Icons.inbox_outlined,
+        title: '等待资源',
+        message: '这个任务还没有加载 Job 与 EP。',
+        action: '加载详情',
+        onAction: () => ref
+            .read(tasksProvider.notifier)
+            .loadTaskDetail(selected!.id, force: true),
+      );
+    }
+
+    final rows = _rows(selected!, jobs, state, settings);
+    return _DetailContent(task: selected!, rows: rows, state: state);
+  }
+
+  List<_EpRow> _rows(
+    Task task,
+    List<Job> jobs,
+    TasksState state,
+    AppSettings settings,
+  ) {
+    final rows = <_EpRow>[];
+    for (final job in jobs) {
+      for (final jobId in job.displayJobIds) {
+        final eps = state.epsByJob['${task.id}_$jobId'] ?? const <Episode>[];
+        if (!settings.showAllJobs && eps.isEmpty) continue;
+        if (eps.isEmpty) rows.add(_EpRow(task: task, jobId: jobId));
+        for (final ep in eps)
+          rows.add(_EpRow(task: task, jobId: jobId, episode: ep));
+      }
+    }
+    return rows;
+  }
+}
+
+class _DetailContent extends ConsumerWidget {
+  const _DetailContent({
+    required this.task,
+    required this.rows,
+    required this.state,
+  });
+
+  final Task task;
+  final List<_EpRow> rows;
+  final TasksState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE4E8EE)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 15, 14, 13),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '任务 #${task.id}  ·  ${rows.where((r) => r.episode != null).length} 个 EP',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      ref.read(tasksProvider.notifier).openNormalEps(task.id),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                  label: const Text('批量打开'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF26765E),
+                    side: const BorderSide(color: Color(0xFF9FD5C2)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 9,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFE7EAF0)),
+          Expanded(
+            child: rows.isEmpty
+                ? const Center(
+                    child: Text(
+                      '没有可展示的 EP',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(10),
+                    itemCount: rows.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 5),
+                    itemBuilder: (context, index) =>
+                        _EpisodeTile(row: rows[index], state: state),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EpisodeTile extends ConsumerWidget {
+  const _EpisodeTile({required this.row, required this.state});
+
+  final _EpRow row;
+  final TasksState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ep = row.episode;
+    if (ep == null) {
+      return _RowSurface(
+        icon: Icons.layers_outlined,
+        color: AppTheme.textTertiary,
+        title: 'Job ${row.jobId}',
+        subtitle: '暂无待审核 EP',
+        trailing: IconButton(
+          onPressed: () =>
+              ref.read(tasksProvider.notifier).refreshTask(row.task.id),
+          icon: const Icon(Icons.refresh_rounded, size: 18),
+          tooltip: '刷新任务',
+        ),
+      );
+    }
+    final key = 'task${row.task.id}-ep${ep.id}';
+    final opened = state.openedEpKeys.contains(key);
+    final failed = ep.isFailed;
+    final color = failed
+        ? AppTheme.danger
+        : opened
+        ? AppTheme.textTertiary
+        : AppTheme.success;
+    return _RowSurface(
+      icon: failed
+          ? Icons.report_gmailerrorred_outlined
+          : opened
+          ? Icons.check_circle_outline
+          : Icons.play_circle_outline,
+      color: color,
+      title: 'EP ${ep.id}',
+      subtitle:
+          'Job ${row.jobId}  ·  ${failed
+              ? ep.failReason
+              : opened
+              ? '已打开，等待下一步处理'
+              : '待审核资源'}',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: () => _preview(ref, row, state),
+            icon: const Icon(Icons.visibility_outlined, size: 18),
+            tooltip: '预览',
+          ),
+          IconButton(
+            onPressed: () => _open(ref, row, key),
+            icon: const Icon(Icons.arrow_outward_rounded, size: 18),
+            tooltip: '打开 EP',
           ),
         ],
       ),
     );
   }
 
-  Future<void> _openUrl(String value) async {
-    final uri = Uri.parse(value);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ref.read(logProvider.notifier).warn('无法打开链接：$value');
-      }
-    }
-  }
-
-  void _onEpTap(int taskId, int jobId, int epId, String epKey) async {
+  Future<void> _open(WidgetRef ref, _EpRow row, String key) async {
     final url = ApiClient.buildEpisodeCheckUrl(
-      taskId: taskId,
-      jobId: jobId,
-      episodeId: epId,
+      taskId: row.task.id,
+      jobId: row.jobId,
+      episodeId: row.episode!.id,
     );
-    await ref.read(tasksProvider.notifier).markEpOpened(epKey);
+    await ref.read(tasksProvider.notifier).markEpOpened(key);
     ref.read(epOpenRequestProvider.notifier).request(url);
   }
 
-  void _openPreview(int taskId, int jobId, TasksState state) async {
-    final previewKey = '${taskId}_$jobId';
+  Future<void> _preview(WidgetRef ref, _EpRow row, TasksState state) async {
+    final previewKey = '${row.task.id}_${row.jobId}';
     final url = state.previewUrls[previewKey];
     if (url != null) {
       ref.read(epOpenRequestProvider.notifier).request(url);
       return;
     }
-    await ref.read(tasksProvider.notifier).fetchPreviewUrl(taskId, jobId);
-    if (!mounted) return;
+    await ref
+        .read(tasksProvider.notifier)
+        .fetchPreviewUrl(row.task.id, row.jobId);
     final newUrl = ref.read(tasksProvider).previewUrls[previewKey];
-    if (newUrl != null) {
+    if (newUrl != null)
       ref.read(epOpenRequestProvider.notifier).request(newUrl);
-    } else {
-      ref.read(logProvider.notifier).warn('获取预览链接失败');
-    }
   }
 }
 
-class _TaskPicker extends StatelessWidget {
-  const _TaskPicker({
-    required this.tasks,
-    required this.selectedTask,
-    required this.onChanged,
+class _RowSurface extends StatelessWidget {
+  const _RowSurface({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.trailing,
   });
 
-  final List<Task> tasks;
-  final Task? selectedTask;
-  final ValueChanged<Task?> onChanged;
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final Widget trailing;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 34,
-      width: 310,
+      padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
       decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.separatorLight),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        color: const Color(0xFFFAFBFC),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0xFFE9ECF1)),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<Task>(
-          value: selectedTask,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-          hint: const Padding(
-            padding: EdgeInsets.only(left: 12),
-            child: Text(
-              '选择任务',
-              style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .11),
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: Icon(icon, size: 17, color: color),
           ),
-          selectedItemBuilder: (context) {
-            return tasks.map((task) {
-              return Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '${task.name}  ×',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              );
-            }).toList();
-          },
-          items: tasks.map((task) {
-            return DropdownMenuItem<Task>(
-              value: task,
-              child: Text(
-                '#${task.id} · ${task.name} · ${task.notCheckCount} EP',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            );
-          }).toList(),
-          onChanged: tasks.isEmpty ? null : onChanged,
-        ),
-      ),
-    );
-  }
-}
-
-class _ToolbarButton extends StatelessWidget {
-  const _ToolbarButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 34,
-      child: TextButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 16, color: color),
-        label: Text(label, style: TextStyle(fontSize: 13, color: color)),
-        style: TextButton.styleFrom(
-          backgroundColor: const Color(0xFFF7F7F8),
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ToolbarIconButton extends StatelessWidget {
-  const _ToolbarIconButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 34,
-      child: TextButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 15, color: onPressed == null ? AppTheme.textTertiary : color),
-        label: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: onPressed == null ? AppTheme.textTertiary : color,
-          ),
-        ),
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ToolbarSquareButton extends StatelessWidget {
-  const _ToolbarSquareButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-    this.selected = false,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onPressed;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: SizedBox(
-        width: 34,
-        height: 34,
-        child: IconButton(
-          onPressed: onPressed,
-          icon: Icon(icon, size: 18),
-          color: selected ? AppTheme.primary : AppTheme.textSecondary,
-          style: IconButton.styleFrom(
-            backgroundColor: selected ? AppTheme.primary.withValues(alpha: 0.08) : null,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: color),
+                ),
+              ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BackHeaderButton extends StatelessWidget {
-  const _BackHeaderButton({required this.width, required this.onPressed});
-
-  final double width;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Tooltip(
-          message: '返回任务列表',
-          child: IconButton(
-            onPressed: onPressed,
-            icon: const Icon(Icons.arrow_back_rounded),
-            iconSize: 18,
-            color: AppTheme.textSecondary,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-            style: IconButton.styleFrom(
-              backgroundColor: AppTheme.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                side: const BorderSide(color: AppTheme.separatorLight),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeaderCell extends StatelessWidget {
-  const _HeaderCell({required this.label, this.width, this.icon});
-
-  final String label;
-  final double? width;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final content = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Flexible(
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        if (icon != null) ...[
-          const SizedBox(width: 4),
-          Icon(icon, size: 14, color: AppTheme.textTertiary),
+          trailing,
         ],
-      ],
+      ),
     );
-
-    if (width == null) return content;
-    return SizedBox(width: width, child: content);
   }
 }
 
-class _ResourceRow extends StatelessWidget {
-  const _ResourceRow({
-    required this.domain,
-    required this.status,
-    required this.description,
-    required this.statusColor,
-    required this.action,
-    this.onTap,
-    this.trailingAction,
+class _WelcomeDetail extends StatelessWidget {
+  const _WelcomeDetail({required this.state});
+  final TasksState state;
+
+  @override
+  Widget build(BuildContext context) => _EmptyDetail(
+    icon: Icons.space_dashboard_outlined,
+    title: '选择一个任务开始',
+    message:
+        '从左侧队列选中任务，查看 Job、EP 并开始审核。\n当前共有 ${state.totalPendingCount} 个 EP 等待处理。',
+  );
+}
+
+class _EmptyDetail extends StatelessWidget {
+  const _EmptyDetail({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.action,
+    this.onAction,
   });
-
-  final String domain;
-  final String status;
-  final String description;
-  final Color statusColor;
-  final _RowAction action;
-  final VoidCallback? onTap;
-  final _RowAction? trailingAction;
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? action;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-      child: Container(
-        height: 58,
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-        ),
-        child: Row(
-          children: [
-            SizedBox(width: 88, child: _DomainCell(domain)),
-            SizedBox(
-              width: 88,
-              child: _StatusPill(label: status, color: statusColor),
-            ),
-            Expanded(child: _DescriptionCell(description)),
-            SizedBox(
-              width: 160,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (trailingAction != null) ...[
-                    _SmallRowButton(action: trailingAction!),
-                    const SizedBox(width: 8),
-                  ],
-                  _SmallRowButton(action: action),
-                ],
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE4E8EE)),
+      ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF2D8),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: const Color(0xFFB87916), size: 25),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DomainCell extends StatelessWidget {
-  const _DomainCell(this.value);
-
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      value,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        color: AppTheme.textSecondary,
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppTheme.radiusXs),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 5),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: color,
+              const SizedBox(height: 14),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DescriptionCell extends StatelessWidget {
-  const _DescriptionCell(this.value);
-
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 16),
-      child: Text(
-        value,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
-        ),
-      ),
-    );
-  }
-}
-
-class _SmallRowButton extends StatelessWidget {
-  const _SmallRowButton({required this.action});
-
-  final _RowAction action;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: action.tooltip,
-      child: SizedBox(
-        width: 32,
-        height: 32,
-        child: IconButton(
-          onPressed: action.onPressed,
-          icon: Icon(action.icon, size: 18),
-          padding: EdgeInsets.zero,
-          color: AppTheme.textSecondary,
-          style: IconButton.styleFrom(
-            backgroundColor: AppTheme.surfaceHover,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusXs),
-            ),
+              const SizedBox(height: 7),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.5,
+                    color: AppTheme.textTertiary,
+                  ),
+                ),
+              ),
+              if (action != null && onAction != null) ...[
+                const SizedBox(height: 16),
+                FilledButton(onPressed: onAction, child: Text(action!)),
+              ],
+            ],
           ),
         ),
       ),
@@ -895,49 +827,42 @@ class _SmallRowButton extends StatelessWidget {
   }
 }
 
-class _FooterLink extends StatelessWidget {
-  const _FooterLink(this.label, this.onTap);
-
+class _HeaderAction extends StatelessWidget {
+  const _HeaderAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.highlighted = false,
+  });
+  final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
+    return OutlinedButton.icon(
       onPressed: onTap,
-      style: TextButton.styleFrom(
-        minimumSize: const Size(0, 26),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 11, color: AppTheme.primary),
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: highlighted
+            ? const Color(0xFFB46C00)
+            : AppTheme.textSecondary,
+        backgroundColor: highlighted ? const Color(0xFFFFF5E2) : null,
+        side: BorderSide(
+          color: highlighted
+              ? const Color(0xFFFFD58C)
+              : const Color(0xFFDDE2E9),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
       ),
     );
   }
-}
-
-class _RowAction {
-  const _RowAction({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
 }
 
 class _EpRow {
-  const _EpRow({
-    required this.task,
-    required this.jobId,
-    required this.episode,
-  });
-
-  const _EpRow.empty(this.task, this.jobId) : episode = null;
-
+  const _EpRow({required this.task, required this.jobId, this.episode});
   final Task task;
   final int jobId;
   final Episode? episode;
