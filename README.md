@@ -62,7 +62,10 @@ SHA-256：`245A413787ABB456684091B3F6BE3900751E5735D3BC786AF23305A5518FF875`
 如果浏览器没有自动打开页面，可以手动访问：
 
 - 脚本猫官网：<https://scriptcat.org/>
+- [脚本猫中的 zero_K-Genie 详情页（推荐备用入口）](https://scriptcat.org/zh-CN/script-show-page/7565)
 - 用户脚本安装地址：<https://raw.githubusercontent.com/Hongwei-name/Genie-Studio-App/zero/userscripts/zero-K-Genie.user.js>
+
+如果直接打开用户脚本地址显示空白页、下载页或 Tampermonkey 的中转页，请优先打开上面的脚本猫详情页，在脚本猫中点击安装。安装完成后，在脚本猫管理页确认脚本已启用。
 
 ### 3. 登录并获取 Cookie
 
@@ -131,7 +134,7 @@ SHA-256：`245A413787ABB456684091B3F6BE3900751E5735D3BC786AF23305A5518FF875`
 | 问题 | 处理方式 |
 | --- | --- |
 | 安装后无法启动 | 确认使用 Windows 10/11 64 位，并重新运行安装程序；不要直接移动安装目录中的单个 exe 文件。 |
-| 一键安装没有打开浏览器 | 检查 Windows 默认浏览器设置，再手动打开脚本猫官网和用户脚本地址。 |
+| 一键安装没有打开浏览器或脚本安装页 | 检查 Windows 默认浏览器设置；也可以直接前往 [脚本猫 zero_K-Genie 详情页](https://scriptcat.org/zh-CN/script-show-page/7565) 安装。 |
 | 脚本猫已安装但没有脚本面板 | 在脚本猫管理页启用脚本，确认当前页面是智元平台，再刷新页面。 |
 | 登录页面无法获取 Cookie | 确认登录已经完成，等待页面跳转后再关闭；也可以手动复制 Cookie 粘贴到 Token 输入框。 |
 | 右上角一直显示未认证 | 确认 Cookie 输入框不为空，点击保存配置；Cookie 失效时需要重新登录获取。 |
